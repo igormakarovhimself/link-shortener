@@ -1,0 +1,55 @@
+package service
+
+import (
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"link-shortener/internal/repository"
+	"log"
+	"net/url"
+)
+
+type ShortenerServiceImpl struct {
+	repo repository.URLRepository
+}
+
+func NewShortenerService(repo repository.URLRepository) *ShortenerServiceImpl {
+	return &ShortenerServiceImpl{
+		repo: repo,
+	}
+}
+
+func (s *ShortenerServiceImpl) ShortenURL(originalURL string) (string, error) {
+	_, err := url.ParseRequestURI(originalURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+
+	shortenUrl := s.generateShortURL(originalURL)
+
+	if err := s.repo.Save(shortenUrl, originalURL); err != nil {
+		return "", fmt.Errorf("Failed to save URL: %w", err)
+	}
+
+	return shortenUrl, nil
+}
+
+func (s *ShortenerServiceImpl) GetOriginalURL(shortURL string) (string, error) {
+	originalURL, err := s.repo.Get(shortURL)
+	if err != nil {
+		return "", fmt.Errorf("URL not found: %w", err)
+	}
+	return originalURL, nil
+}
+
+func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
+	log.Println("=================================================")
+	log.Println("Url: ", originalURL)
+	hash := sha256.New()
+	hash.Write([]byte(originalURL))
+	resultHash := hash.Sum(nil)
+	result := base64.RawURLEncoding.EncodeToString(resultHash)
+	log.Println("Result: ", result)
+
+	return result[:8]
+}
