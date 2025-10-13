@@ -25,13 +25,13 @@ func (s *ShortenerServiceImpl) ShortenURL(originalURL string) (string, error) {
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
 
-	shortenUrl := s.generateShortURL(originalURL)
+	shortenURL := s.generateShortURL(originalURL)
 
-	if err := s.repo.Save(shortenUrl, originalURL); err != nil {
-		return "", fmt.Errorf("Failed to save URL: %w", err)
+	if err := s.repo.Save(shortenURL, originalURL); err != nil {
+		return "", fmt.Errorf("failed to save URL: %w", err)
 	}
 
-	return shortenUrl, nil
+	return shortenURL, nil
 }
 
 func (s *ShortenerServiceImpl) GetOriginalURL(shortURL string) (string, error) {

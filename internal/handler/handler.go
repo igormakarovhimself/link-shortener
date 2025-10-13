@@ -52,9 +52,9 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resultUrl := "http://localhost:8080/" + shortURL
+	resultURL := "http://localhost:8080/" + shortURL
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(resultUrl))
+	w.Write([]byte(resultURL))
 }
 
 func (h *URLHandler) handleGet(w http.ResponseWriter, r *http.Request) {
