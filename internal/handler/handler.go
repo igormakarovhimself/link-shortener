@@ -5,6 +5,8 @@ import (
 	"link-shortener/internal/service"
 	"net/http"
 	"net/url"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type URLHandler struct {
@@ -14,20 +16,6 @@ type URLHandler struct {
 func NewHandler(service service.ShortenerService) *URLHandler {
 	return &URLHandler{
 		service: service,
-	}
-}
-
-func (h *URLHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == `/` {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-		}
-		h.HandlePost(w, r)
-	} else {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-		}
-		h.handleGet(w, r)
 	}
 }
 
@@ -57,8 +45,8 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(resultURL))
 }
 
-func (h *URLHandler) handleGet(w http.ResponseWriter, r *http.Request) {
-	shortURL := r.URL.Path[1:]
+func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
+	shortURL := chi.URLParam(r, "id")
 
 	originalURL, err := h.service.GetOriginalURL(shortURL)
 

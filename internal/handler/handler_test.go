@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -113,10 +114,13 @@ func TestHandleGet(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			r := chi.NewRouter()
+			r.Get("/{id}", handler.HandleGet)
+
 			request := httptest.NewRequest(http.MethodGet, "/"+test.shortURL, nil)
 			w := httptest.NewRecorder()
 
-			handler.handleGet(w, request)
+			r.ServeHTTP(w, request)
 
 			res := w.Result()
 			defer res.Body.Close()
