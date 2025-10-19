@@ -52,7 +52,7 @@ func TestHandlePost(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			svc := service.NewShortenerService(repo)
-			handler := NewHandler(svc)
+			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
@@ -107,7 +107,7 @@ func TestHandleGet(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			svc := service.NewShortenerService(repo)
-			handler := NewHandler(svc)
+			handler := NewHandler(svc, "http://localhost:8080")
 
 			if test.setupURL != "" {
 				err := repo.Save(test.shortURL, test.setupURL)

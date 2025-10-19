@@ -11,11 +11,13 @@ import (
 
 type URLHandler struct {
 	service service.ShortenerService
+	baseURL string
 }
 
-func NewHandler(service service.ShortenerService) *URLHandler {
+func NewHandler(service service.ShortenerService, baseURL string) *URLHandler {
 	return &URLHandler{
 		service: service,
+		baseURL: baseURL,
 	}
 }
 
@@ -40,7 +42,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resultURL := "http://localhost:8080/" + shortURL
+	resultURL := h.baseURL + "/" + shortURL
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(resultURL))
 }
