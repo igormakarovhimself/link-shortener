@@ -4,7 +4,6 @@ import (
 	"io"
 	"link-shortener/internal/service"
 	"net/http"
-	"net/url"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,13 +28,6 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	originalURL := string(bodyBytes)
-
-	_, err = url.ParseRequestURI(originalURL)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	shortURL, err := h.service.ShortenURL(originalURL)
 
