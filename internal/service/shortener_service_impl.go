@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"link-shortener/internal/repository"
-	"log"
 	"net/url"
 )
 
@@ -43,13 +42,10 @@ func (s *ShortenerServiceImpl) GetOriginalURL(shortURL string) (string, error) {
 }
 
 func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
-	log.Println("=================================================")
-	log.Println("Url: ", originalURL)
 	hash := sha256.New()
 	hash.Write([]byte(originalURL))
 	resultHash := hash.Sum(nil)
 	result := base64.RawURLEncoding.EncodeToString(resultHash)
-	log.Println("Result: ", result)
 
 	return result[:8]
 }
