@@ -25,6 +25,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	originalURL := string(bodyBytes)
@@ -33,6 +34,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	shortURL, err := h.service.ShortenURL(originalURL)
