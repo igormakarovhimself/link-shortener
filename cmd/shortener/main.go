@@ -14,7 +14,7 @@ import (
 var urlStorage = make(map[string]string)
 
 func main() {
-	cfg := config.ParseFlags()
+	cfg := config.SetupConfig()
 
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo)
