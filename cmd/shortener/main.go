@@ -34,6 +34,7 @@ func main() {
 	r.Use(middleware.WithLogging(sugar))
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
+	r.Post("/api/shorten", h.HandleAPIShorten)
 
 	log.Println("Starting server on", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {

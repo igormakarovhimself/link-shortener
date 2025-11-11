@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"io"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
@@ -129,6 +130,76 @@ func TestHandleGet(t *testing.T) {
 
 			if test.want.statusCode == http.StatusTemporaryRedirect {
 				assert.Equal(t, test.want.location, res.Header.Get("Location"))
+			}
+		})
+	}
+}
+
+func TestHandleAPIShorten(t *testing.T) {
+	type want struct {
+		statusCode  int
+		contentType string
+	}
+	tests := []struct {
+		name string
+		body string
+		want want
+	}{
+		{
+			name: "valid JSON",
+			body: `{"url":"https://practicum.yandex.ru"}`,
+			want: want{
+				statusCode:  http.StatusCreated,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "invalid JSON",
+			body: `{"url":}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "invalid URL in JSON",
+			body: `{"url":"not-a-url"}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "empty URL in JSON",
+			body: `{"url":""}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := repository.NewLocalRepository()
+			svc := service.NewShortenerService(repo)
+			handler := NewHandler(svc, "http://localhost:8080")
+
+			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			handler.HandleAPIShorten(w, request)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			assert.Equal(t, test.want.statusCode, res.StatusCode)
+
+			if test.want.statusCode == http.StatusCreated {
+				assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+
+				var response ShortenResponse
+				err := json.NewDecoder(res.Body).Decode(&response)
+				require.NoError(t, err)
+				assert.Contains(t, response.Result, "http://localhost:8080/")
 			}
 		})
 	}
