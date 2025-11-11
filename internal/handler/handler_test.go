@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
+	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
 	"net/http"
@@ -72,6 +75,95 @@ func TestHandlePost(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGzipCompression(t *testing.T) {
+	repo := repository.NewLocalRepository()
+	svc := service.NewShortenerService(repo)
+	handler := NewHandler(svc, "http://localhost:8080")
+
+	r := chi.NewRouter()
+	r.Use(middleware.WithGzip())
+	r.Post("/api/shorten", handler.HandleAPIShorten)
+
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	requestBody := `{"url":"https://practicum.yandex.ru"}`
+
+	t.Run("sends_gzip", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten", buf)
+		req.RequestURI = ""
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept-Encoding", "")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		var response ShortenResponse
+		err = json.Unmarshal(b, &response)
+		require.NoError(t, err)
+		assert.Contains(t, response.Result, "http://localhost:8080/")
+	})
+
+	t.Run("accepts_gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(requestBody)
+		req := httptest.NewRequest(http.MethodPost, srv.URL+"/api/shorten", buf)
+		req.RequestURI = ""
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		zr, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+
+		b, err := io.ReadAll(zr)
+		require.NoError(t, err)
+
+		var response ShortenResponse
+		err = json.Unmarshal(b, &response)
+		require.NoError(t, err)
+		assert.Contains(t, response.Result, "http://localhost:8080/")
+	})
+
+	t.Run("no_compression_for_text_plain", func(t *testing.T) {
+		buf := bytes.NewBufferString("https://practicum.yandex.ru")
+		req := httptest.NewRequest(http.MethodPost, "/", buf)
+		req.Header.Set("Accept-Encoding", "gzip")
+
+		w := httptest.NewRecorder()
+
+		r2 := chi.NewRouter()
+		r2.Use(middleware.WithGzip())
+		r2.Post("/", handler.HandlePost)
+
+		r2.ServeHTTP(w, req)
+
+		res := w.Result()
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, res.StatusCode)
+		assert.NotEqual(t, "gzip", res.Header.Get("Content-Encoding"))
+	})
 }
 
 func TestHandleGet(t *testing.T) {
