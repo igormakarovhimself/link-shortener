@@ -32,6 +32,7 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
+	r.Use(middleware.WithGzip())
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
 	r.Post("/api/shorten", h.HandleAPIShorten)
