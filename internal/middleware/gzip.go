@@ -11,13 +11,27 @@ type compressWriter struct {
 	http.ResponseWriter
 	Writer         io.Writer
 	wroteHeader    bool
+	checkedType    bool
 	shouldCompress bool
 }
 
 func (w *compressWriter) Write(b []byte) (int, error) {
+	if !w.checkedType {
+		w.checkedType = true
+		contentType := w.ResponseWriter.Header().Get("Content-Type")
+		if contentType == "" {
+			contentType = http.DetectContentType(b)
+		}
+		w.shouldCompress = supportsCompression(contentType)
+	}
+
 	if !w.wroteHeader {
+		if w.shouldCompress {
+			w.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+		}
 		w.WriteHeader(http.StatusOK)
 	}
+
 	if w.shouldCompress {
 		return w.Writer.Write(b)
 	}
@@ -29,13 +43,6 @@ func (w *compressWriter) WriteHeader(statusCode int) {
 		return
 	}
 	w.wroteHeader = true
-
-	contentType := w.ResponseWriter.Header().Get("Content-Type")
-	if contentType != "" && supportsCompression(contentType) {
-		w.shouldCompress = true
-		w.ResponseWriter.Header().Set("Content-Encoding", "gzip")
-	}
-
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 

@@ -106,7 +106,13 @@ func TestGzipCompression(t *testing.T) {
 		r.Header.Set("Content-Encoding", "gzip")
 		r.Header.Set("Content-Type", "application/json")
 
-		resp, err := http.DefaultClient.Do(r)
+		client := &http.Client{
+			Transport: &http.Transport{
+				DisableCompression: true,
+			},
+		}
+
+		resp, err := client.Do(r)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
