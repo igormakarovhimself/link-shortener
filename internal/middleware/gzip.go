@@ -9,24 +9,54 @@ import (
 
 type compressWriter struct {
 	http.ResponseWriter
-	Writer io.Writer
+	zw             *gzip.Writer
+	headerWritten  bool
+	shouldCompress bool
+	checkedType    bool
+}
+
+func newCompressWriter(w http.ResponseWriter) *compressWriter {
+	zw, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	return &compressWriter{
+		ResponseWriter: w,
+		zw:             zw,
+	}
 }
 
 func (w *compressWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
+	if !w.checkedType {
+		w.checkedType = true
+		contentType := w.ResponseWriter.Header().Get("Content-Type")
+		if contentType == "" {
+			contentType = http.DetectContentType(b)
+		}
+		w.shouldCompress = supportsCompression(contentType)
+	}
+
+	if !w.headerWritten {
+		if w.shouldCompress {
+			w.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+	if w.shouldCompress {
+		return w.zw.Write(b)
+	}
+	return w.ResponseWriter.Write(b)
 }
 
 func (w *compressWriter) WriteHeader(statusCode int) {
-	contentType := w.ResponseWriter.Header().Get("Content-Type")
-	if supportsCompression(contentType) {
-		w.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+	if w.headerWritten {
+		return
 	}
+	w.headerWritten = true
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (w *compressWriter) Close() error {
-	if closer, ok := w.Writer.(io.Closer); ok {
-		return closer.Close()
+	if w.shouldCompress {
+		return w.zw.Close()
 	}
 	return nil
 }
@@ -66,17 +96,9 @@ func WithGzip() func(http.Handler) http.Handler {
 			ow := w
 
 			acceptEncoding := r.Header.Get("Accept-Encoding")
-			supportsGzip := strings.Contains(acceptEncoding, "gzip")
+			supportsGzip := acceptEncoding != "" && strings.Contains(acceptEncoding, "gzip")
 			if supportsGzip {
-				gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				cw := &compressWriter{
-					ResponseWriter: w,
-					Writer:         gz,
-				}
+				cw := newCompressWriter(w)
 				ow = cw
 				defer cw.Close()
 			}
