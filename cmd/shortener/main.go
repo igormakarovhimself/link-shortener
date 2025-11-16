@@ -13,8 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var urlStorage = make(map[string]string)
-
 func main() {
 	cfg := config.SetupConfig()
 
@@ -26,7 +24,12 @@ func main() {
 
 	sugar := logger.Sugar()
 
-	repo := repository.NewLocalRepository()
+	repo, err := repository.NewFileRepository(cfg.FileStoragePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer repo.Close()
+
 	svc := service.NewShortenerService(repo)
 	h := handler.NewHandler(svc, cfg.BaseURL)
 

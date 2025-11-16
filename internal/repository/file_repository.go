@@ -1,0 +1,99 @@
+package repository
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"link-shortener/internal/model"
+	"os"
+	"strconv"
+	"sync"
+)
+
+type FileRepository struct {
+	file    *os.File
+	encoder *json.Encoder
+	storage map[string]string
+	counter int
+	mutex   sync.RWMutex
+}
+
+func NewFileRepository(filepath string) (*FileRepository, error) {
+	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+
+	repo := &FileRepository{
+		file:    file,
+		encoder: json.NewEncoder(file),
+		storage: make(map[string]string),
+		counter: 0,
+	}
+
+	if err := repo.loadData(); err != nil {
+		file.Close()
+		return nil, err
+	}
+
+	return repo, nil
+}
+
+func (r *FileRepository) loadData() error {
+	decoder := json.NewDecoder(r.file)
+
+	for {
+		record := &model.URLRecord{}
+		if err := decoder.Decode(record); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		r.storage[record.ShortURL] = record.OriginalURL
+
+		if uuid, err := strconv.Atoi(record.UUID); err == nil {
+			if uuid > r.counter {
+				r.counter = uuid
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *FileRepository) Save(shortURL, originalURL string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	r.counter++
+	record := &model.URLRecord{
+		UUID:        strconv.Itoa(r.counter),
+		ShortURL:    shortURL,
+		OriginalURL: originalURL,
+	}
+
+	if err := r.encoder.Encode(record); err != nil {
+		return err
+	}
+
+	r.storage[shortURL] = originalURL
+
+	return nil
+}
+
+func (r *FileRepository) Get(shortURL string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	url, exists := r.storage[shortURL]
+	if !exists {
+		return "", fmt.Errorf("URL not found")
+	}
+
+	return url, nil
+}
+
+func (r *FileRepository) Close() error {
+	return r.file.Close()
+}

@@ -6,8 +6,9 @@ import (
 )
 
 type Config struct {
-	ServerAddress string
-	BaseURL       string
+	ServerAddress   string
+	BaseURL         string
+	FileStoragePath string
 }
 
 func SetupConfig() *Config {
@@ -15,6 +16,7 @@ func SetupConfig() *Config {
 
 	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "Server address")
 	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "Base URL")
+	flag.StringVar(&cfg.FileStoragePath, "f", "short-url.json", "File storage path")
 
 	flag.Parse()
 
@@ -24,6 +26,10 @@ func SetupConfig() *Config {
 
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
 		cfg.BaseURL = envBaseURL
+	}
+
+	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
+		cfg.FileStoragePath = envFilePath
 	}
 
 	return cfg
