@@ -96,7 +96,11 @@ func WithGzip() func(http.Handler) http.Handler {
 			if supportsGzip {
 				cw := newCompressWriter(w)
 				ow = cw
-				defer cw.Writer.(*gzip.Writer).Close()
+				defer func() {
+					if cw.shouldCompress {
+						cw.Writer.(*gzip.Writer).Close()
+					}
+				}()
 			}
 
 			contentEncoding := r.Header.Get("Content-Encoding")
