@@ -43,6 +43,19 @@ func (w *compressWriter) WriteHeader(statusCode int) {
 		return
 	}
 	w.wroteHeader = true
+
+	if !w.checkedType {
+		w.checkedType = true
+		contentType := w.ResponseWriter.Header().Get("Content-Type")
+		if contentType != "" {
+			w.shouldCompress = supportsCompression(contentType)
+		}
+	}
+
+	if w.shouldCompress {
+		w.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+	}
+
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
