@@ -1,19 +1,36 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"os"
+)
 
 type Config struct {
-	ServerAddress string
-	BaseURL       string
+	ServerAddress   string
+	BaseURL         string
+	FileStoragePath string
 }
 
-func ParseFlags() *Config {
+func SetupConfig() *Config {
 	cfg := &Config{}
 
 	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "Server address")
 	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "Base URL")
+	flag.StringVar(&cfg.FileStoragePath, "f", "short-url.json", "File storage path")
 
 	flag.Parse()
+
+	if envServerAddress := os.Getenv("SERVER_ADDRESS"); envServerAddress != "" {
+		cfg.ServerAddress = envServerAddress
+	}
+
+	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
+		cfg.BaseURL = envBaseURL
+	}
+
+	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
+		cfg.FileStoragePath = envFilePath
+	}
 
 	return cfg
 }

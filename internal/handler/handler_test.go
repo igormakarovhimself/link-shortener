@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"io"
+	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
 	"net/http"
@@ -73,6 +77,75 @@ func TestHandlePost(t *testing.T) {
 	}
 }
 
+func TestGzipCompression(t *testing.T) {
+	repo := repository.NewLocalRepository()
+	svc := service.NewShortenerService(repo)
+	h := NewHandler(svc, "http://localhost:8080")
+
+	r := chi.NewRouter()
+	r.Use(middleware.WithGzip())
+	r.Post("/api/shorten", h.HandleAPIShorten)
+
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	requestBody := `{"url":"https://practicum.yandex.ru"}`
+
+	successBody := `{"result":"http://localhost:8080/`
+
+	t.Run("sends_gzip", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		r := httptest.NewRequest("POST", srv.URL+"/api/shorten", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{
+			Transport: &http.Transport{
+				DisableCompression: true,
+			},
+		}
+
+		resp, err := client.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		assert.Contains(t, string(b), successBody)
+	})
+
+	t.Run("accepts_gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(requestBody)
+		r := httptest.NewRequest("POST", srv.URL+"/api/shorten", buf)
+		r.RequestURI = ""
+		r.Header.Set("Accept-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		defer resp.Body.Close()
+
+		zr, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err)
+
+		b, err := io.ReadAll(zr)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(b), successBody)
+	})
+}
+
 func TestHandleGet(t *testing.T) {
 	type want struct {
 		statusCode int
@@ -129,6 +202,76 @@ func TestHandleGet(t *testing.T) {
 
 			if test.want.statusCode == http.StatusTemporaryRedirect {
 				assert.Equal(t, test.want.location, res.Header.Get("Location"))
+			}
+		})
+	}
+}
+
+func TestHandleAPIShorten(t *testing.T) {
+	type want struct {
+		statusCode  int
+		contentType string
+	}
+	tests := []struct {
+		name string
+		body string
+		want want
+	}{
+		{
+			name: "valid JSON",
+			body: `{"url":"https://practicum.yandex.ru"}`,
+			want: want{
+				statusCode:  http.StatusCreated,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "invalid JSON",
+			body: `{"url":}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "invalid URL in JSON",
+			body: `{"url":"not-a-url"}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "empty URL in JSON",
+			body: `{"url":""}`,
+			want: want{
+				statusCode: http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repo := repository.NewLocalRepository()
+			svc := service.NewShortenerService(repo)
+			handler := NewHandler(svc, "http://localhost:8080")
+
+			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			handler.HandleAPIShorten(w, request)
+
+			res := w.Result()
+			defer res.Body.Close()
+
+			assert.Equal(t, test.want.statusCode, res.StatusCode)
+
+			if test.want.statusCode == http.StatusCreated {
+				assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+
+				var response ShortenResponse
+				err := json.NewDecoder(res.Body).Decode(&response)
+				require.NoError(t, err)
+				assert.Contains(t, response.Result, "http://localhost:8080/")
 			}
 		})
 	}
