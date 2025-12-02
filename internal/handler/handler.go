@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"link-shortener/internal/service"
@@ -20,12 +21,14 @@ type ShortenResponse struct {
 type URLHandler struct {
 	service service.ShortenerService
 	baseURL string
+	db      *sql.DB
 }
 
-func NewHandler(service service.ShortenerService, baseURL string) *URLHandler {
+func NewHandler(service service.ShortenerService, baseURL string, db *sql.DB) *URLHandler {
 	return &URLHandler{
 		service: service,
 		baseURL: baseURL,
+		db:      db,
 	}
 }
 
@@ -86,4 +89,16 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
+	if h.db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if err := h.db.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

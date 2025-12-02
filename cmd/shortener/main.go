@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
 	"link-shortener/internal/config"
 	"link-shortener/internal/handler"
 	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
-	"log"
-	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -30,14 +35,30 @@ func main() {
 	}
 	defer repo.Close()
 
+	var db *sql.DB
+	if cfg.DatabaseDSN != "" {
+		db, err = sql.Open("pgx", cfg.DatabaseDSN)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		if err = db.PingContext(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	svc := service.NewShortenerService(repo)
-	h := handler.NewHandler(svc, cfg.BaseURL)
+	h := handler.NewHandler(svc, cfg.BaseURL, db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
 	r.Use(middleware.WithGzip())
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
+	r.Get("/ping", h.HandlePing)
 	r.Post("/api/shorten", h.HandleAPIShorten)
 
 	log.Println("Starting server on", cfg.ServerAddress)
