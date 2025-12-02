@@ -9,8 +9,29 @@ type DBRepository struct {
 	db *sql.DB
 }
 
-func NewDBRepository(db *sql.DB) *DBRepository {
-	return &DBRepository{db: db}
+func NewDBRepository(db *sql.DB) (*DBRepository, error) {
+	repo := &DBRepository{db: db}
+
+	if err := repo.bootstrap(); err != nil {
+		return nil, err
+	}
+
+	return repo, nil
+}
+
+func (r *DBRepository) bootstrap() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS urls (
+		id SERIAL PRIMARY KEY,
+		short_url VARCHAR(255) UNIQUE NOT NULL,
+		original_url TEXT NOT NULL
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_urls_short_url ON urls(short_url);
+	`
+
+	_, err := r.db.ExecContext(context.Background(), query)
+	return err
 }
 
 func (r *DBRepository) Save(shortURL, originalURL string) error {

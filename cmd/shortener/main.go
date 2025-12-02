@@ -45,7 +45,10 @@ func main() {
 			log.Fatal(err)
 		}
 
-		repo = repository.NewDBRepository(db)
+		repo, err = repository.NewDBRepository(db)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else if cfg.FileStoragePath != "" {
 		fileRepo, err := repository.NewFileRepository(cfg.FileStoragePath)
 		if err != nil {
