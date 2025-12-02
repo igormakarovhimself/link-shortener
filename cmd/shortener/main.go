@@ -29,13 +29,9 @@ func main() {
 
 	sugar := logger.Sugar()
 
-	repo, err := repository.NewFileRepository(cfg.FileStoragePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer repo.Close()
-
+	var repo repository.URLRepository
 	var db *sql.DB
+
 	if cfg.DatabaseDSN != "" {
 		db, err = sql.Open("pgx", cfg.DatabaseDSN)
 		if err != nil {
@@ -48,6 +44,17 @@ func main() {
 		if err = db.PingContext(ctx); err != nil {
 			log.Fatal(err)
 		}
+
+		repo = repository.NewDBRepository(db)
+	} else if cfg.FileStoragePath != "" {
+		fileRepo, err := repository.NewFileRepository(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer fileRepo.Close()
+		repo = fileRepo
+	} else {
+		repo = repository.NewLocalRepository()
 	}
 
 	svc := service.NewShortenerService(repo)
