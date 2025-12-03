@@ -125,7 +125,7 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 	originalURLs := make([]string, len(requests))
 
 	for i, req := range requests {
-		shortURL, err := h.service.ShortenURL(req.OriginalURL)
+		shortURL, err := h.service.GenerateShortURL(req.OriginalURL)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

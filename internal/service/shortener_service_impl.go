@@ -53,3 +53,11 @@ func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
 func (s *ShortenerServiceImpl) SaveBatch(shortURLs, originalURLs []string) error {
 	return s.repo.SaveBatch(shortURLs, originalURLs)
 }
+
+func (s *ShortenerServiceImpl) GenerateShortURL(originalURL string) (string, error) {
+	_, err := url.ParseRequestURI(originalURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	return s.generateShortURL(originalURL), nil
+}
