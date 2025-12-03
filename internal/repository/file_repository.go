@@ -97,3 +97,25 @@ func (r *FileRepository) Get(shortURL string) (string, error) {
 func (r *FileRepository) Close() error {
 	return r.file.Close()
 }
+
+func (r *FileRepository) SaveBatch(shortURLs, originalURLs []string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for i := range shortURLs {
+		r.counter++
+		record := &model.URLRecord{
+			UUID:        strconv.Itoa(r.counter),
+			ShortURL:    shortURLs[i],
+			OriginalURL: originalURLs[i],
+		}
+
+		if err := r.encoder.Encode(record); err != nil {
+			return err
+		}
+
+		r.storage[shortURLs[i]] = originalURLs[i]
+	}
+
+	return nil
+}

@@ -56,3 +56,32 @@ func (r *DBRepository) Get(shortURL string) (string, error) {
 	}
 	return originalURL, nil
 }
+
+func (r *DBRepository) SaveBatch(shortURLs, originalURLs []string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	ctx := context.Background()
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		"INSERT INTO urls (short_url, original_url) VALUES ($1, $2)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for i := range shortURLs {
+		_, err = stmt.ExecContext(ctx, shortURLs[i], originalURLs[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}

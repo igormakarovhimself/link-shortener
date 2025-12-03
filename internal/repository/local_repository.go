@@ -32,3 +32,14 @@ func (r *LocalRepository) Get(shortURL string) (string, error) {
 	}
 	return url, nil
 }
+
+func (r *LocalRepository) SaveBatch(shortURLs, originalURLs []string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for i := range shortURLs {
+		r.storage[shortURLs[i]] = originalURLs[i]
+	}
+
+	return nil
+}

@@ -18,6 +18,16 @@ type ShortenResponse struct {
 	Result string `json:"result"`
 }
 
+type BatchShortenRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchShortenResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
 type URLHandler struct {
 	service service.ShortenerService
 	baseURL string
@@ -101,4 +111,43 @@ func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
+	var requests []BatchShortenRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&requests); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	shortURLs := make([]string, len(requests))
+	originalURLs := make([]string, len(requests))
+
+	for i, req := range requests {
+		shortURL, err := h.service.ShortenURL(req.OriginalURL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		shortURLs[i] = shortURL
+		originalURLs[i] = req.OriginalURL
+	}
+
+	if err := h.service.SaveBatch(shortURLs, originalURLs); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	responses := make([]BatchShortenResponse, len(requests))
+	for i, req := range requests {
+		responses[i] = BatchShortenResponse{
+			CorrelationID: req.CorrelationID,
+			ShortURL:      h.baseURL + "/" + shortURLs[i],
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(responses)
 }

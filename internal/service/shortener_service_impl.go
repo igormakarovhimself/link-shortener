@@ -49,3 +49,7 @@ func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
 
 	return result[:8]
 }
+
+func (s *ShortenerServiceImpl) SaveBatch(shortURLs, originalURLs []string) error {
+	return s.repo.SaveBatch(shortURLs, originalURLs)
+}
