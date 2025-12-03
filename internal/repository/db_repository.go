@@ -3,7 +3,19 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+type ConflictError struct {
+	ShortURL string
+}
+
+func (e *ConflictError) Error() string {
+	return "url already exists"
+}
 
 type DBRepository struct {
 	db *sql.DB
@@ -40,7 +52,19 @@ func (r *DBRepository) Save(shortURL, originalURL string) error {
 		"INSERT INTO urls (short_url, original_url) VALUES ($1, $2)",
 		shortURL, originalURL,
 	)
-	return err
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			existingShortURL, getErr := r.GetByOriginalURL(originalURL)
+			if getErr != nil {
+				return err
+			}
+			return &ConflictError{ShortURL: existingShortURL}
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *DBRepository) Get(shortURL string) (string, error) {
@@ -55,6 +79,20 @@ func (r *DBRepository) Get(shortURL string) (string, error) {
 		return "", err
 	}
 	return originalURL, nil
+}
+
+func (r *DBRepository) GetByOriginalURL(originalURL string) (string, error) {
+	var shortURL string
+	err := r.db.QueryRowContext(
+		context.Background(),
+		"SELECT short_url FROM urls WHERE original_url = $1",
+		originalURL,
+	).Scan(&shortURL)
+
+	if err != nil {
+		return "", err
+	}
+	return shortURL, nil
 }
 
 func (r *DBRepository) SaveBatch(shortURLs, originalURLs []string) error {

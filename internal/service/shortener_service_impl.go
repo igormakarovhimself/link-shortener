@@ -27,7 +27,7 @@ func (s *ShortenerServiceImpl) ShortenURL(originalURL string) (string, error) {
 	shortenURL := s.generateShortURL(originalURL)
 
 	if err := s.repo.Save(shortenURL, originalURL); err != nil {
-		return "", fmt.Errorf("failed to save URL: %w", err)
+		return "", err
 	}
 
 	return shortenURL, nil

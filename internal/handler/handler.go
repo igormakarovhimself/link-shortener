@@ -3,7 +3,9 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
+	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
 	"net/http"
 
@@ -54,6 +56,13 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	shortURL, err := h.service.ShortenURL(originalURL)
 
 	if err != nil {
+		var conflictErr *repository.ConflictError
+		if errors.As(err, &conflictErr) {
+			resultURL := h.baseURL + "/" + conflictErr.ShortURL
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(resultURL))
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -87,6 +96,17 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 
 	shortURL, err := h.service.ShortenURL(req.URL)
 	if err != nil {
+		var conflictErr *repository.ConflictError
+		if errors.As(err, &conflictErr) {
+			resultURL := h.baseURL + "/" + conflictErr.ShortURL
+			resp := ShortenResponse{
+				Result: resultURL,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
