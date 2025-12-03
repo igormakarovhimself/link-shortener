@@ -56,11 +56,7 @@ func (r *DBRepository) Save(shortURL, originalURL string) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			existingShortURL, getErr := r.GetByOriginalURL(originalURL)
-			if getErr != nil {
-				return err
-			}
-			return &ConflictError{ShortURL: existingShortURL}
+			return &ConflictError{ShortURL: shortURL}
 		}
 		return err
 	}
