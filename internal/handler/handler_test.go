@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"link-shortener/internal/middleware"
@@ -56,7 +57,7 @@ func TestHandlePost(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			svc := service.NewShortenerService(repo)
-			handler := NewHandler(svc, "http://localhost:8080", nil)
+			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
@@ -80,7 +81,7 @@ func TestHandlePost(t *testing.T) {
 func TestGzipCompression(t *testing.T) {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo)
-	h := NewHandler(svc, "http://localhost:8080", nil)
+	h := NewHandler(svc, "http://localhost:8080")
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithGzip())
@@ -180,10 +181,10 @@ func TestHandleGet(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			svc := service.NewShortenerService(repo)
-			handler := NewHandler(svc, "http://localhost:8080", nil)
+			handler := NewHandler(svc, "http://localhost:8080")
 
 			if test.setupURL != "" {
-				err := repo.Save(test.shortURL, test.setupURL)
+				err := repo.Save(context.Background(), test.shortURL, test.setupURL)
 				require.NoError(t, err)
 			}
 
@@ -252,7 +253,7 @@ func TestHandleAPIShorten(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			svc := service.NewShortenerService(repo)
-			handler := NewHandler(svc, "http://localhost:8080", nil)
+			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
 			request.Header.Set("Content-Type", "application/json")

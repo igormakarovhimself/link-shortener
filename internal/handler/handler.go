@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -33,15 +32,19 @@ type BatchShortenResponse struct {
 type URLHandler struct {
 	service service.ShortenerService
 	baseURL string
-	db      *sql.DB
 }
 
-func NewHandler(service service.ShortenerService, baseURL string, db *sql.DB) *URLHandler {
+func NewHandler(service service.ShortenerService, baseURL string) *URLHandler {
 	return &URLHandler{
 		service: service,
 		baseURL: baseURL,
-		db:      db,
 	}
+}
+
+func (h *URLHandler) handleConflictError(w http.ResponseWriter, conflictErr *repository.ConflictError) {
+	resultURL := h.baseURL + "/" + conflictErr.ShortURL
+	w.WriteHeader(http.StatusConflict)
+	w.Write([]byte(resultURL))
 }
 
 func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
@@ -53,14 +56,12 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	originalURL := string(bodyBytes)
 
-	shortURL, err := h.service.ShortenURL(originalURL)
+	shortURL, err := h.service.ShortenURL(r.Context(), originalURL)
 
 	if err != nil {
 		var conflictErr *repository.ConflictError
 		if errors.As(err, &conflictErr) {
-			resultURL := h.baseURL + "/" + conflictErr.ShortURL
-			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(resultURL))
+			h.handleConflictError(w, conflictErr)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -75,7 +76,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	shortURL := chi.URLParam(r, "id")
 
-	originalURL, err := h.service.GetOriginalURL(shortURL)
+	originalURL, err := h.service.GetOriginalURL(r.Context(), shortURL)
 
 	if err != nil {
 		http.Error(w, "Not found", http.StatusNotFound)
@@ -94,7 +95,7 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL, err := h.service.ShortenURL(req.URL)
+	shortURL, err := h.service.ShortenURL(r.Context(), req.URL)
 	if err != nil {
 		var conflictErr *repository.ConflictError
 		if errors.As(err, &conflictErr) {
@@ -122,11 +123,7 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
-	if h.db == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if err := h.db.Ping(); err != nil {
+	if err := h.service.Ping(r.Context()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -154,7 +151,7 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 		originalURLs[i] = req.OriginalURL
 	}
 
-	if err := h.service.SaveBatch(shortURLs, originalURLs); err != nil {
+	if err := h.service.SaveBatch(r.Context(), shortURLs, originalURLs); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

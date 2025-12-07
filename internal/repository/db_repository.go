@@ -46,9 +46,9 @@ func (r *DBRepository) bootstrap() error {
 	return err
 }
 
-func (r *DBRepository) Save(shortURL, originalURL string) error {
+func (r *DBRepository) Save(ctx context.Context, shortURL, originalURL string) error {
 	_, err := r.db.ExecContext(
-		context.Background(),
+		ctx,
 		"INSERT INTO urls (short_url, original_url) VALUES ($1, $2)",
 		shortURL, originalURL,
 	)
@@ -56,17 +56,21 @@ func (r *DBRepository) Save(shortURL, originalURL string) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return &ConflictError{ShortURL: shortURL}
+			existingShortURL, getErr := r.GetByOriginalURL(ctx, originalURL)
+			if getErr != nil {
+				return getErr
+			}
+			return &ConflictError{ShortURL: existingShortURL}
 		}
 		return err
 	}
 	return nil
 }
 
-func (r *DBRepository) Get(shortURL string) (string, error) {
+func (r *DBRepository) Get(ctx context.Context, shortURL string) (string, error) {
 	var originalURL string
 	err := r.db.QueryRowContext(
-		context.Background(),
+		ctx,
 		"SELECT original_url FROM urls WHERE short_url = $1",
 		shortURL,
 	).Scan(&originalURL)
@@ -77,10 +81,10 @@ func (r *DBRepository) Get(shortURL string) (string, error) {
 	return originalURL, nil
 }
 
-func (r *DBRepository) GetByOriginalURL(originalURL string) (string, error) {
+func (r *DBRepository) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
 	var shortURL string
 	err := r.db.QueryRowContext(
-		context.Background(),
+		ctx,
 		"SELECT short_url FROM urls WHERE original_url = $1",
 		originalURL,
 	).Scan(&shortURL)
@@ -91,12 +95,11 @@ func (r *DBRepository) GetByOriginalURL(originalURL string) (string, error) {
 	return shortURL, nil
 }
 
-func (r *DBRepository) SaveBatch(shortURLs, originalURLs []string) error {
+func (r *DBRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string) error {
 	if len(shortURLs) == 0 {
 		return nil
 	}
 
-	ctx := context.Background()
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -118,4 +121,8 @@ func (r *DBRepository) SaveBatch(shortURLs, originalURLs []string) error {
 	}
 
 	return tx.Commit()
+}
+
+func (r *DBRepository) Ping(ctx context.Context) error {
+	return r.db.PingContext(ctx)
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,7 +63,7 @@ func (r *FileRepository) loadData() error {
 	return nil
 }
 
-func (r *FileRepository) Save(shortURL, originalURL string) error {
+func (r *FileRepository) Save(ctx context.Context, shortURL, originalURL string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -82,7 +83,7 @@ func (r *FileRepository) Save(shortURL, originalURL string) error {
 	return nil
 }
 
-func (r *FileRepository) Get(shortURL string) (string, error) {
+func (r *FileRepository) Get(ctx context.Context, shortURL string) (string, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -94,11 +95,22 @@ func (r *FileRepository) Get(shortURL string) (string, error) {
 	return url, nil
 }
 
+func (r *FileRepository) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	for shortURL, origURL := range r.storage {
+		if origURL == originalURL {
+			return shortURL, nil
+		}
+	}
+	return "", fmt.Errorf("URL not found")
+}
+
 func (r *FileRepository) Close() error {
 	return r.file.Close()
 }
 
-func (r *FileRepository) SaveBatch(shortURLs, originalURLs []string) error {
+func (r *FileRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -117,5 +129,9 @@ func (r *FileRepository) SaveBatch(shortURLs, originalURLs []string) error {
 		r.storage[shortURLs[i]] = originalURLs[i]
 	}
 
+	return nil
+}
+
+func (r *FileRepository) Ping(ctx context.Context) error {
 	return nil
 }

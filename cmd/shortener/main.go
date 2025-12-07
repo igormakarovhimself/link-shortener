@@ -61,7 +61,7 @@ func main() {
 	}
 
 	svc := service.NewShortenerService(repo)
-	h := handler.NewHandler(svc, cfg.BaseURL, db)
+	h := handler.NewHandler(svc, cfg.BaseURL)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
