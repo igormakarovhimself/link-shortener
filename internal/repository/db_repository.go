@@ -24,25 +24,25 @@ type DBRepository struct {
 func NewDBRepository(db *sql.DB) (*DBRepository, error) {
 	repo := &DBRepository{db: db}
 
-	if err := repo.bootstrap(); err != nil {
+	if err := repo.bootstrap(context.Background()); err != nil {
 		return nil, err
 	}
 
 	return repo, nil
 }
 
-func (r *DBRepository) bootstrap() error {
+func (r *DBRepository) bootstrap(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS urls (
 		id SERIAL PRIMARY KEY,
 		short_url VARCHAR(255) UNIQUE NOT NULL,
-		original_url TEXT NOT NULL
+		original_url TEXT UNIQUE NOT NULL
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_urls_short_url ON urls(short_url);
 	`
 
-	_, err := r.db.ExecContext(context.Background(), query)
+	_, err := r.db.ExecContext(ctx, query)
 	return err
 }
 
