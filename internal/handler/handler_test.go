@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"link-shortener/internal/middleware"
@@ -183,7 +184,7 @@ func TestHandleGet(t *testing.T) {
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			if test.setupURL != "" {
-				err := repo.Save(test.shortURL, test.setupURL)
+				err := repo.Save(context.Background(), test.shortURL, test.setupURL)
 				require.NoError(t, err)
 			}
 
