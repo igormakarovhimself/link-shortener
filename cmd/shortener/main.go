@@ -73,6 +73,7 @@ func main() {
 	r.Post("/api/shorten", h.HandleAPIShorten)
 	r.Post("/api/shorten/batch", h.HandleAPIBatch)
 	r.Get("/api/user/urls", h.HandleGetUserURLs)
+	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
 
 	log.Println("Starting server on", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {

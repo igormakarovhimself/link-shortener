@@ -8,16 +8,26 @@ import (
 	"link-shortener/internal/model"
 	"link-shortener/internal/repository"
 	"net/url"
+	"time"
 )
 
+type DeleteTask struct {
+	UserID    string
+	ShortURLs []string
+}
+
 type ShortenerServiceImpl struct {
-	repo repository.URLRepository
+	repo       repository.URLRepository
+	deleteChan chan DeleteTask
 }
 
 func NewShortenerService(repo repository.URLRepository) *ShortenerServiceImpl {
-	return &ShortenerServiceImpl{
-		repo: repo,
+	svc := &ShortenerServiceImpl{
+		repo:       repo,
+		deleteChan: make(chan DeleteTask, 1024),
 	}
+	go svc.startDeleteWorker()
+	return svc
 }
 
 func (s *ShortenerServiceImpl) ShortenURL(ctx context.Context, originalURL, userID string) (string, error) {
@@ -66,6 +76,46 @@ func (s *ShortenerServiceImpl) GenerateShortURL(originalURL string) (string, err
 
 func (s *ShortenerServiceImpl) GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error) {
 	return s.repo.GetURLsByUserID(ctx, userID)
+}
+
+func (s *ShortenerServiceImpl) DeleteURLsAsync(shortURLs []string, userID string) {
+	task := DeleteTask{
+		UserID:    userID,
+		ShortURLs: shortURLs,
+	}
+	s.deleteChan <- task
+}
+
+func (s *ShortenerServiceImpl) startDeleteWorker() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	var tasks []DeleteTask
+
+	for {
+		select {
+		case task := <-s.deleteChan:
+			tasks = append(tasks, task)
+		case <-ticker.C:
+			if len(tasks) == 0 {
+				continue
+			}
+
+			s.processDeletions(tasks)
+			tasks = nil
+		}
+	}
+}
+
+func (s *ShortenerServiceImpl) processDeletions(tasks []DeleteTask) {
+	ctx := context.Background()
+
+	for _, task := range tasks {
+		err := s.repo.DeleteURLs(ctx, task.ShortURLs, task.UserID)
+		if err != nil {
+			continue
+		}
+	}
 }
 
 func (s *ShortenerServiceImpl) Ping(ctx context.Context) error {

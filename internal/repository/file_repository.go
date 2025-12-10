@@ -14,6 +14,7 @@ import (
 type urlFileData struct {
 	originalURL string
 	userID      string
+	isDeleted   bool
 }
 
 type FileRepository struct {
@@ -104,6 +105,10 @@ func (r *FileRepository) Get(ctx context.Context, shortURL string) (string, erro
 		return "", fmt.Errorf("URL not found")
 	}
 
+	if data.isDeleted {
+		return "", ErrURLDeleted
+	}
+
 	return data.originalURL, nil
 }
 
@@ -163,6 +168,20 @@ func (r *FileRepository) GetURLsByUserID(ctx context.Context, userID string) ([]
 	}
 
 	return urls, nil
+}
+
+func (r *FileRepository) DeleteURLs(ctx context.Context, shortURLs []string, userID string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, shortURL := range shortURLs {
+		if data, exists := r.storage[shortURL]; exists && data.userID == userID {
+			data.isDeleted = true
+			r.storage[shortURL] = data
+		}
+	}
+
+	return nil
 }
 
 func (r *FileRepository) Ping(ctx context.Context) error {

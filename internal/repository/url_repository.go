@@ -11,5 +11,6 @@ type URLRepository interface {
 	GetByOriginalURL(ctx context.Context, originalURL string) (string, error)
 	SaveBatch(ctx context.Context, shortURLs, originalURLs []string, userID string) error
 	GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error)
+	DeleteURLs(ctx context.Context, shortURLs []string, userID string) error
 	Ping(ctx context.Context) error
 }

@@ -10,6 +10,7 @@ import (
 type urlData struct {
 	originalURL string
 	userID      string
+	isDeleted   bool
 }
 
 type LocalRepository struct {
@@ -39,6 +40,9 @@ func (r *LocalRepository) Get(ctx context.Context, shortURL string) (string, err
 	data, exists := r.storage[shortURL]
 	if !exists {
 		return "", fmt.Errorf("URL not found")
+	}
+	if data.isDeleted {
+		return "", ErrURLDeleted
 	}
 	return data.originalURL, nil
 }
@@ -83,6 +87,20 @@ func (r *LocalRepository) GetURLsByUserID(ctx context.Context, userID string) ([
 	}
 
 	return urls, nil
+}
+
+func (r *LocalRepository) DeleteURLs(ctx context.Context, shortURLs []string, userID string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, shortURL := range shortURLs {
+		if data, exists := r.storage[shortURL]; exists && data.userID == userID {
+			data.isDeleted = true
+			r.storage[shortURL] = data
+		}
+	}
+
+	return nil
 }
 
 func (r *LocalRepository) Ping(ctx context.Context) error {

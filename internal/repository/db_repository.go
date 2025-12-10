@@ -18,6 +18,8 @@ func (e *ConflictError) Error() string {
 	return "url already exists"
 }
 
+var ErrURLDeleted = errors.New("url has been deleted")
+
 type DBRepository struct {
 	db *sql.DB
 }
@@ -72,15 +74,21 @@ func (r *DBRepository) Save(ctx context.Context, shortURL, originalURL, userID s
 
 func (r *DBRepository) Get(ctx context.Context, shortURL string) (string, error) {
 	var originalURL string
+	var isDeleted bool
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT original_url FROM urls WHERE short_url = $1",
+		"SELECT original_url, is_deleted FROM urls WHERE short_url = $1",
 		shortURL,
-	).Scan(&originalURL)
+	).Scan(&originalURL, &isDeleted)
 
 	if err != nil {
 		return "", err
 	}
+
+	if isDeleted {
+		return "", ErrURLDeleted
+	}
+
 	return originalURL, nil
 }
 
@@ -151,6 +159,16 @@ func (r *DBRepository) GetURLsByUserID(ctx context.Context, userID string) ([]mo
 	}
 
 	return urls, nil
+}
+
+func (r *DBRepository) DeleteURLs(ctx context.Context, shortURLs []string, userID string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	query := `UPDATE urls SET is_deleted = TRUE WHERE short_url = ANY($1) AND user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, shortURLs, userID)
+	return err
 }
 
 func (r *DBRepository) Ping(ctx context.Context) error {

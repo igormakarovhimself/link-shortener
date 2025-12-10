@@ -81,6 +81,10 @@ func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	originalURL, err := h.service.GetOriginalURL(r.Context(), shortURL)
 
 	if err != nil {
+		if errors.Is(err, repository.ErrURLDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -210,4 +214,23 @@ func (h *URLHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(responses)
+}
+
+func (h *URLHandler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	if userID == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	var shortURLs []string
+	if err := json.NewDecoder(r.Body).Decode(&shortURLs); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.service.DeleteURLsAsync(shortURLs, userID)
+
+	w.WriteHeader(http.StatusAccepted)
 }
