@@ -66,11 +66,13 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
 	r.Use(middleware.WithGzip())
+	r.Use(middleware.WithAuth())
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
 	r.Get("/ping", h.HandlePing)
 	r.Post("/api/shorten", h.HandleAPIShorten)
 	r.Post("/api/shorten/batch", h.HandleAPIBatch)
+	r.Get("/api/user/urls", h.HandleGetUserURLs)
 
 	log.Println("Starting server on", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {

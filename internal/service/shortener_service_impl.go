@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"link-shortener/internal/model"
 	"link-shortener/internal/repository"
 	"net/url"
 )
@@ -19,7 +20,7 @@ func NewShortenerService(repo repository.URLRepository) *ShortenerServiceImpl {
 	}
 }
 
-func (s *ShortenerServiceImpl) ShortenURL(ctx context.Context, originalURL string) (string, error) {
+func (s *ShortenerServiceImpl) ShortenURL(ctx context.Context, originalURL, userID string) (string, error) {
 	_, err := url.ParseRequestURI(originalURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid URL: %w", err)
@@ -27,7 +28,7 @@ func (s *ShortenerServiceImpl) ShortenURL(ctx context.Context, originalURL strin
 
 	shortenURL := s.generateShortURL(originalURL)
 
-	if err := s.repo.Save(ctx, shortenURL, originalURL); err != nil {
+	if err := s.repo.Save(ctx, shortenURL, originalURL, userID); err != nil {
 		return "", err
 	}
 
@@ -51,8 +52,8 @@ func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
 	return result[:8]
 }
 
-func (s *ShortenerServiceImpl) SaveBatch(ctx context.Context, shortURLs, originalURLs []string) error {
-	return s.repo.SaveBatch(ctx, shortURLs, originalURLs)
+func (s *ShortenerServiceImpl) SaveBatch(ctx context.Context, shortURLs, originalURLs []string, userID string) error {
+	return s.repo.SaveBatch(ctx, shortURLs, originalURLs, userID)
 }
 
 func (s *ShortenerServiceImpl) GenerateShortURL(originalURL string) (string, error) {
@@ -61,6 +62,10 @@ func (s *ShortenerServiceImpl) GenerateShortURL(originalURL string) (string, err
 		return "", fmt.Errorf("invalid URL: %w", err)
 	}
 	return s.generateShortURL(originalURL), nil
+}
+
+func (s *ShortenerServiceImpl) GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error) {
+	return s.repo.GetURLsByUserID(ctx, userID)
 }
 
 func (s *ShortenerServiceImpl) Ping(ctx context.Context) error {

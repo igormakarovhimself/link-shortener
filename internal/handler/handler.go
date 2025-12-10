@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
 	"net/http"
@@ -55,8 +56,9 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	originalURL := string(bodyBytes)
+	userID := middleware.GetUserID(r.Context())
 
-	shortURL, err := h.service.ShortenURL(r.Context(), originalURL)
+	shortURL, err := h.service.ShortenURL(r.Context(), originalURL, userID)
 
 	if err != nil {
 		var conflictErr *repository.ConflictError
@@ -95,7 +97,9 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL, err := h.service.ShortenURL(r.Context(), req.URL)
+	userID := middleware.GetUserID(r.Context())
+
+	shortURL, err := h.service.ShortenURL(r.Context(), req.URL, userID)
 	if err != nil {
 		var conflictErr *repository.ConflictError
 		if errors.As(err, &conflictErr) {
@@ -138,6 +142,8 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := middleware.GetUserID(r.Context())
+
 	shortURLs := make([]string, len(requests))
 	originalURLs := make([]string, len(requests))
 
@@ -151,7 +157,7 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 		originalURLs[i] = req.OriginalURL
 	}
 
-	if err := h.service.SaveBatch(r.Context(), shortURLs, originalURLs); err != nil {
+	if err := h.service.SaveBatch(r.Context(), shortURLs, originalURLs, userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -166,5 +172,42 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(responses)
+}
+
+func (h *URLHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	if userID == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	urls, err := h.service.GetURLsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(urls) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	type UserURLResponse struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	responses := make([]UserURLResponse, len(urls))
+	for i, url := range urls {
+		responses[i] = UserURLResponse{
+			ShortURL:    h.baseURL + "/" + url.ShortURL,
+			OriginalURL: url.OriginalURL,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(responses)
 }
