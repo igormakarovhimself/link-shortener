@@ -60,6 +60,8 @@ func TestHandlePost(t *testing.T) {
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
+			ctx := context.WithValue(request.Context(), middleware.UserIDKey, "test-user-id")
+			request = request.WithContext(ctx)
 			w := httptest.NewRecorder()
 
 			handler.HandlePost(w, request)
@@ -184,7 +186,7 @@ func TestHandleGet(t *testing.T) {
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			if test.setupURL != "" {
-				err := repo.Save(context.Background(), test.shortURL, test.setupURL)
+				err := repo.Save(context.Background(), test.shortURL, test.setupURL, "test-user-id")
 				require.NoError(t, err)
 			}
 
@@ -257,6 +259,8 @@ func TestHandleAPIShorten(t *testing.T) {
 
 			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
 			request.Header.Set("Content-Type", "application/json")
+			ctx := context.WithValue(request.Context(), middleware.UserIDKey, "test-user-id")
+			request = request.WithContext(ctx)
 			w := httptest.NewRecorder()
 
 			handler.HandleAPIShorten(w, request)
