@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestHandlePost(t *testing.T) {
@@ -56,7 +57,8 @@ func TestHandlePost(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
-			svc := service.NewShortenerService(repo)
+			logger := zap.NewNop().Sugar()
+			svc := service.NewShortenerService(repo, logger)
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
@@ -82,7 +84,8 @@ func TestHandlePost(t *testing.T) {
 
 func TestGzipCompression(t *testing.T) {
 	repo := repository.NewLocalRepository()
-	svc := service.NewShortenerService(repo)
+	logger := zap.NewNop().Sugar()
+	svc := service.NewShortenerService(repo, logger)
 	h := NewHandler(svc, "http://localhost:8080")
 
 	r := chi.NewRouter()
@@ -182,7 +185,8 @@ func TestHandleGet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
-			svc := service.NewShortenerService(repo)
+			logger := zap.NewNop().Sugar()
+			svc := service.NewShortenerService(repo, logger)
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			if test.setupURL != "" {
@@ -254,7 +258,8 @@ func TestHandleAPIShorten(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			repo := repository.NewLocalRepository()
-			svc := service.NewShortenerService(repo)
+			logger := zap.NewNop().Sugar()
+			svc := service.NewShortenerService(repo, logger)
 			handler := NewHandler(svc, "http://localhost:8080")
 
 			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
