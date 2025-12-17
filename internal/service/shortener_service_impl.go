@@ -19,7 +19,6 @@ const (
 )
 
 type DeleteTask struct {
-	Ctx       context.Context
 	UserID    string
 	ShortURLs []string
 }
@@ -115,7 +114,7 @@ func (s *ShortenerServiceImpl) deleteWorker(workerID int) chan DeleteResult {
 		defer close(resultCh)
 
 		for task := range s.deleteCh {
-			err := s.repo.DeleteURLs(task.Ctx, task.ShortURLs, task.UserID)
+			err := s.repo.DeleteURLs(context.Background(), task.ShortURLs, task.UserID)
 
 			result := DeleteResult{
 				Success: err == nil,
@@ -180,11 +179,14 @@ func (s *ShortenerServiceImpl) resultLogger(resultCh chan DeleteResult) {
 
 func (s *ShortenerServiceImpl) DeleteURLsAsync(ctx context.Context, shortURLs []string, userID string) {
 	task := DeleteTask{
-		Ctx:       ctx,
 		UserID:    userID,
 		ShortURLs: shortURLs,
 	}
-	s.deleteCh <- task
+
+	select {
+	case s.deleteCh <- task:
+	case <-ctx.Done():
+	}
 }
 
 func (s *ShortenerServiceImpl) Shutdown(ctx context.Context) error {
