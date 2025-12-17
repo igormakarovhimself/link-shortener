@@ -60,7 +60,7 @@ func main() {
 		repo = repository.NewLocalRepository()
 	}
 
-	svc := service.NewShortenerService(repo)
+	svc := service.NewShortenerService(repo, sugar)
 	h := handler.NewHandler(svc, cfg.BaseURL)
 
 	r := chi.NewRouter()

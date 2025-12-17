@@ -11,6 +11,6 @@ type ShortenerService interface {
 	SaveBatch(ctx context.Context, shortURLs, originalURLs []string, userID string) error
 	GenerateShortURL(originalURL string) (string, error)
 	GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error)
-	DeleteURLsAsync(shortURLs []string, userID string)
+	DeleteURLsAsync(ctx context.Context, shortURLs []string, userID string)
 	Ping(ctx context.Context) error
 }

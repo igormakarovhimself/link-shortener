@@ -230,7 +230,7 @@ func (h *URLHandler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	h.service.DeleteURLsAsync(shortURLs, userID)
+	h.service.DeleteURLsAsync(r.Context(), shortURLs, userID)
 
 	w.WriteHeader(http.StatusAccepted)
 }

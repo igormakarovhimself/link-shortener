@@ -8,25 +8,53 @@ import (
 	"link-shortener/internal/model"
 	"link-shortener/internal/repository"
 	"net/url"
-	"time"
+	"sync"
+
+	"go.uber.org/zap"
+)
+
+const (
+	numWorkers     = 3
+	deleteChanSize = 1024
 )
 
 type DeleteTask struct {
+	Ctx       context.Context
 	UserID    string
 	ShortURLs []string
 }
 
-type ShortenerServiceImpl struct {
-	repo       repository.URLRepository
-	deleteChan chan DeleteTask
+type DeleteResult struct {
+	Success bool
+	Error   error
+	UserID  string
+	Count   int
 }
 
-func NewShortenerService(repo repository.URLRepository) *ShortenerServiceImpl {
+type ShortenerServiceImpl struct {
+	repo     repository.URLRepository
+	logger   *zap.SugaredLogger
+	deleteCh chan DeleteTask
+	doneCh   chan struct{}
+	wg       sync.WaitGroup
+}
+
+func NewShortenerService(repo repository.URLRepository, logger *zap.SugaredLogger) *ShortenerServiceImpl {
 	svc := &ShortenerServiceImpl{
-		repo:       repo,
-		deleteChan: make(chan DeleteTask, 1024),
+		repo:     repo,
+		logger:   logger,
+		deleteCh: make(chan DeleteTask, deleteChanSize),
+		doneCh:   make(chan struct{}),
 	}
-	go svc.startDeleteWorker()
+
+	resultChannels := make([]chan DeleteResult, numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		resultChannels[i] = svc.deleteWorker(i)
+	}
+
+	finalResultCh := svc.fanIn(resultChannels...)
+	svc.resultLogger(finalResultCh)
+
 	return svc
 }
 
@@ -78,43 +106,102 @@ func (s *ShortenerServiceImpl) GetURLsByUserID(ctx context.Context, userID strin
 	return s.repo.GetURLsByUserID(ctx, userID)
 }
 
-func (s *ShortenerServiceImpl) DeleteURLsAsync(shortURLs []string, userID string) {
+func (s *ShortenerServiceImpl) deleteWorker(workerID int) chan DeleteResult {
+	resultCh := make(chan DeleteResult)
+	s.wg.Add(1)
+
+	go func() {
+		defer s.wg.Done()
+		defer close(resultCh)
+
+		for task := range s.deleteCh {
+			err := s.repo.DeleteURLs(task.Ctx, task.ShortURLs, task.UserID)
+
+			result := DeleteResult{
+				Success: err == nil,
+				Error:   err,
+				UserID:  task.UserID,
+				Count:   len(task.ShortURLs),
+			}
+
+			select {
+			case <-s.doneCh:
+				return
+			case resultCh <- result:
+			}
+		}
+	}()
+
+	return resultCh
+}
+
+func (s *ShortenerServiceImpl) fanIn(resultChs ...chan DeleteResult) chan DeleteResult {
+	finalCh := make(chan DeleteResult)
+	var wg sync.WaitGroup
+
+	for _, ch := range resultChs {
+		chClosure := ch
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for result := range chClosure {
+				select {
+				case <-s.doneCh:
+					return
+				case finalCh <- result:
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(finalCh)
+	}()
+
+	return finalCh
+}
+
+func (s *ShortenerServiceImpl) resultLogger(resultCh chan DeleteResult) {
+	s.wg.Add(1)
+
+	go func() {
+		defer s.wg.Done()
+
+		for result := range resultCh {
+			if result.Error != nil {
+				s.logger.Errorf("Failed to delete %d URLs for user %s: %v", result.Count, result.UserID, result.Error)
+			}
+		}
+	}()
+}
+
+func (s *ShortenerServiceImpl) DeleteURLsAsync(ctx context.Context, shortURLs []string, userID string) {
 	task := DeleteTask{
+		Ctx:       ctx,
 		UserID:    userID,
 		ShortURLs: shortURLs,
 	}
-	s.deleteChan <- task
+	s.deleteCh <- task
 }
 
-func (s *ShortenerServiceImpl) startDeleteWorker() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+func (s *ShortenerServiceImpl) Shutdown(ctx context.Context) error {
+	close(s.deleteCh)
+	close(s.doneCh)
 
-	var tasks []DeleteTask
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
 
-	for {
-		select {
-		case task := <-s.deleteChan:
-			tasks = append(tasks, task)
-		case <-ticker.C:
-			if len(tasks) == 0 {
-				continue
-			}
-
-			s.processDeletions(tasks)
-			tasks = nil
-		}
-	}
-}
-
-func (s *ShortenerServiceImpl) processDeletions(tasks []DeleteTask) {
-	ctx := context.Background()
-
-	for _, task := range tasks {
-		err := s.repo.DeleteURLs(ctx, task.ShortURLs, task.UserID)
-		if err != nil {
-			continue
-		}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
