@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	"link-shortener/internal/audit"
 	"link-shortener/internal/config"
 	"link-shortener/internal/handler"
 	"link-shortener/internal/middleware"
@@ -60,8 +61,29 @@ func main() {
 		repo = repository.NewLocalRepository()
 	}
 
+	publisher := audit.NewPublisher()
+
+	if cfg.AuditFile != "" {
+		fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
+		if err != nil {
+			log.Printf("Failed to create file observer: %v", err)
+		} else if fileObserver != nil {
+			publisher.Register("file", fileObserver)
+			defer fileObserver.Close()
+		}
+	}
+
+	if cfg.AuditURL != "" {
+		urlObserver, err := audit.NewURLObserver(cfg.AuditURL)
+		if err != nil {
+			log.Printf("Failed to create URL observer: %v", err)
+		} else if urlObserver != nil {
+			publisher.Register("url", urlObserver)
+		}
+	}
+
 	svc := service.NewShortenerService(repo, sugar)
-	h := handler.NewHandler(svc, cfg.BaseURL)
+	h := handler.NewHandler(svc, cfg.BaseURL, publisher)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
