@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"link-shortener/internal/audit"
 	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
@@ -31,14 +32,16 @@ type BatchShortenResponse struct {
 }
 
 type URLHandler struct {
-	service service.ShortenerService
-	baseURL string
+	service   service.ShortenerService
+	baseURL   string
+	publisher *audit.Publisher
 }
 
-func NewHandler(service service.ShortenerService, baseURL string) *URLHandler {
+func NewHandler(service service.ShortenerService, baseURL string, publisher *audit.Publisher) *URLHandler {
 	return &URLHandler{
-		service: service,
-		baseURL: baseURL,
+		service:   service,
+		baseURL:   baseURL,
+		publisher: publisher,
 	}
 }
 
@@ -73,6 +76,11 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	resultURL := h.baseURL + "/" + shortURL
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(resultURL))
+
+	if h.publisher != nil {
+		event := audit.NewAuditEvent("shorten", userID, originalURL)
+		h.publisher.Notify(event)
+	}
 }
 
 func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +99,12 @@ func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", originalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+
+	if h.publisher != nil {
+		userID := middleware.GetUserID(r.Context())
+		event := audit.NewAuditEvent("follow", userID, originalURL)
+		h.publisher.Notify(event)
+	}
 }
 
 func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +142,11 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
+
+	if h.publisher != nil {
+		event := audit.NewAuditEvent("shorten", userID, req.URL)
+		h.publisher.Notify(event)
+	}
 }
 
 func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
