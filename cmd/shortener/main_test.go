@@ -37,7 +37,7 @@ func TestRepositorySelection(t *testing.T) {
 		defer repo.Close()
 
 		ctx := context.Background()
-		err = repo.Save(ctx, "test123", "https://example.com")
+		err = repo.Save(ctx, "test123", "https://example.com", "test-user")
 		if err != nil {
 			t.Errorf("Failed to save URL: %v", err)
 		}

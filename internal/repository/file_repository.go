@@ -11,10 +11,16 @@ import (
 	"sync"
 )
 
+type urlFileData struct {
+	originalURL string
+	userID      string
+	isDeleted   bool
+}
+
 type FileRepository struct {
 	file    *os.File
 	encoder *json.Encoder
-	storage map[string]string
+	storage map[string]urlFileData
 	counter int
 	mutex   sync.RWMutex
 }
@@ -28,7 +34,7 @@ func NewFileRepository(filepath string) (*FileRepository, error) {
 	repo := &FileRepository{
 		file:    file,
 		encoder: json.NewEncoder(file),
-		storage: make(map[string]string),
+		storage: make(map[string]urlFileData),
 		counter: 0,
 	}
 
@@ -51,7 +57,10 @@ func (r *FileRepository) loadData() error {
 			return err
 		}
 
-		r.storage[record.ShortURL] = record.OriginalURL
+		r.storage[record.ShortURL] = urlFileData{
+			originalURL: record.OriginalURL,
+			userID:      record.UserID,
+		}
 
 		if uuid, err := strconv.Atoi(record.UUID); err == nil {
 			if uuid > r.counter {
@@ -63,7 +72,7 @@ func (r *FileRepository) loadData() error {
 	return nil
 }
 
-func (r *FileRepository) Save(ctx context.Context, shortURL, originalURL string) error {
+func (r *FileRepository) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -72,13 +81,17 @@ func (r *FileRepository) Save(ctx context.Context, shortURL, originalURL string)
 		UUID:        strconv.Itoa(r.counter),
 		ShortURL:    shortURL,
 		OriginalURL: originalURL,
+		UserID:      userID,
 	}
 
 	if err := r.encoder.Encode(record); err != nil {
 		return err
 	}
 
-	r.storage[shortURL] = originalURL
+	r.storage[shortURL] = urlFileData{
+		originalURL: originalURL,
+		userID:      userID,
+	}
 
 	return nil
 }
@@ -87,19 +100,23 @@ func (r *FileRepository) Get(ctx context.Context, shortURL string) (string, erro
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	url, exists := r.storage[shortURL]
+	data, exists := r.storage[shortURL]
 	if !exists {
 		return "", fmt.Errorf("URL not found")
 	}
 
-	return url, nil
+	if data.isDeleted {
+		return "", ErrURLDeleted
+	}
+
+	return data.originalURL, nil
 }
 
 func (r *FileRepository) GetByOriginalURL(ctx context.Context, originalURL string) (string, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	for shortURL, origURL := range r.storage {
-		if origURL == originalURL {
+	for shortURL, data := range r.storage {
+		if data.originalURL == originalURL {
 			return shortURL, nil
 		}
 	}
@@ -110,7 +127,7 @@ func (r *FileRepository) Close() error {
 	return r.file.Close()
 }
 
-func (r *FileRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string) error {
+func (r *FileRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string, userID string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -120,13 +137,48 @@ func (r *FileRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs 
 			UUID:        strconv.Itoa(r.counter),
 			ShortURL:    shortURLs[i],
 			OriginalURL: originalURLs[i],
+			UserID:      userID,
 		}
 
 		if err := r.encoder.Encode(record); err != nil {
 			return err
 		}
 
-		r.storage[shortURLs[i]] = originalURLs[i]
+		r.storage[shortURLs[i]] = urlFileData{
+			originalURL: originalURLs[i],
+			userID:      userID,
+		}
+	}
+
+	return nil
+}
+
+func (r *FileRepository) GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var urls []model.URLPair
+	for shortURL, data := range r.storage {
+		if data.userID == userID {
+			urls = append(urls, model.URLPair{
+				ShortURL:    shortURL,
+				OriginalURL: data.originalURL,
+			})
+		}
+	}
+
+	return urls, nil
+}
+
+func (r *FileRepository) DeleteURLs(ctx context.Context, shortURLs []string, userID string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, shortURL := range shortURLs {
+		if data, exists := r.storage[shortURL]; exists && data.userID == userID {
+			data.isDeleted = true
+			r.storage[shortURL] = data
+		}
 	}
 
 	return nil

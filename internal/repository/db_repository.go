@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"link-shortener/internal/model"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,6 +17,8 @@ type ConflictError struct {
 func (e *ConflictError) Error() string {
 	return "url already exists"
 }
+
+var ErrURLDeleted = errors.New("url has been deleted")
 
 type DBRepository struct {
 	db *sql.DB
@@ -36,21 +39,24 @@ func (r *DBRepository) bootstrap(ctx context.Context) error {
 	CREATE TABLE IF NOT EXISTS urls (
 		id SERIAL PRIMARY KEY,
 		short_url VARCHAR(255) UNIQUE NOT NULL,
-		original_url TEXT UNIQUE NOT NULL
+		original_url TEXT UNIQUE NOT NULL,
+		user_id TEXT NOT NULL DEFAULT '',
+		is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_urls_short_url ON urls(short_url);
+	CREATE INDEX IF NOT EXISTS idx_urls_user_id ON urls(user_id);
 	`
 
 	_, err := r.db.ExecContext(ctx, query)
 	return err
 }
 
-func (r *DBRepository) Save(ctx context.Context, shortURL, originalURL string) error {
+func (r *DBRepository) Save(ctx context.Context, shortURL, originalURL, userID string) error {
 	_, err := r.db.ExecContext(
 		ctx,
-		"INSERT INTO urls (short_url, original_url) VALUES ($1, $2)",
-		shortURL, originalURL,
+		"INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)",
+		shortURL, originalURL, userID,
 	)
 
 	if err != nil {
@@ -69,15 +75,21 @@ func (r *DBRepository) Save(ctx context.Context, shortURL, originalURL string) e
 
 func (r *DBRepository) Get(ctx context.Context, shortURL string) (string, error) {
 	var originalURL string
+	var isDeleted bool
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT original_url FROM urls WHERE short_url = $1",
+		"SELECT original_url, is_deleted FROM urls WHERE short_url = $1",
 		shortURL,
-	).Scan(&originalURL)
+	).Scan(&originalURL, &isDeleted)
 
 	if err != nil {
 		return "", err
 	}
+
+	if isDeleted {
+		return "", ErrURLDeleted
+	}
+
 	return originalURL, nil
 }
 
@@ -95,7 +107,7 @@ func (r *DBRepository) GetByOriginalURL(ctx context.Context, originalURL string)
 	return shortURL, nil
 }
 
-func (r *DBRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string) error {
+func (r *DBRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []string, userID string) error {
 	if len(shortURLs) == 0 {
 		return nil
 	}
@@ -107,20 +119,57 @@ func (r *DBRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO urls (short_url, original_url) VALUES ($1, $2)")
+		"INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for i := range shortURLs {
-		_, err = stmt.ExecContext(ctx, shortURLs[i], originalURLs[i])
+		_, err = stmt.ExecContext(ctx, shortURLs[i], originalURLs[i], userID)
 		if err != nil {
 			return err
 		}
 	}
 
 	return tx.Commit()
+}
+
+func (r *DBRepository) GetURLsByUserID(ctx context.Context, userID string) ([]model.URLPair, error) {
+	rows, err := r.db.QueryContext(
+		ctx,
+		"SELECT short_url, original_url FROM urls WHERE user_id = $1",
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var urls []model.URLPair
+	for rows.Next() {
+		var pair model.URLPair
+		if err := rows.Scan(&pair.ShortURL, &pair.OriginalURL); err != nil {
+			return nil, err
+		}
+		urls = append(urls, pair)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
+
+func (r *DBRepository) DeleteURLs(ctx context.Context, shortURLs []string, userID string) error {
+	if len(shortURLs) == 0 {
+		return nil
+	}
+
+	query := `UPDATE urls SET is_deleted = TRUE WHERE short_url = ANY($1) AND user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, shortURLs, userID)
+	return err
 }
 
 func (r *DBRepository) Ping(ctx context.Context) error {

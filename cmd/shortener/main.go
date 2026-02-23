@@ -60,17 +60,20 @@ func main() {
 		repo = repository.NewLocalRepository()
 	}
 
-	svc := service.NewShortenerService(repo)
+	svc := service.NewShortenerService(repo, sugar)
 	h := handler.NewHandler(svc, cfg.BaseURL)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
 	r.Use(middleware.WithGzip())
+	r.Use(middleware.WithAuth())
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
 	r.Get("/ping", h.HandlePing)
 	r.Post("/api/shorten", h.HandleAPIShorten)
 	r.Post("/api/shorten/batch", h.HandleAPIBatch)
+	r.Get("/api/user/urls", h.HandleGetUserURLs)
+	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
 
 	log.Println("Starting server on", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
