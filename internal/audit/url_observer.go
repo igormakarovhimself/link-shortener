@@ -26,5 +26,9 @@ func (u *URLObserver) OnAudit(event AuditEvent) {
 		return
 	}
 
-	http.Post(u.url, "application/json", bytes.NewBuffer(data))
+	resp, err := http.Post(u.url, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
 }
