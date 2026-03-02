@@ -81,11 +81,8 @@ func (s *ShortenerServiceImpl) GetOriginalURL(ctx context.Context, shortURL stri
 }
 
 func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
-	hash := sha256.New()
-	hash.Write([]byte(originalURL))
-	resultHash := hash.Sum(nil)
-	result := base64.RawURLEncoding.EncodeToString(resultHash)
-
+	hash := sha256.Sum256([]byte(originalURL))
+	result := base64.RawURLEncoding.EncodeToString(hash[:])
 	return result[:8]
 }
 

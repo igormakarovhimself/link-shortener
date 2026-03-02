@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -89,6 +90,7 @@ func main() {
 	r.Use(middleware.WithLogging(sugar))
 	r.Use(middleware.WithGzip())
 	r.Use(middleware.WithAuth())
+	r.Mount("/debug", http.DefaultServeMux)
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
 	r.Get("/ping", h.HandlePing)
