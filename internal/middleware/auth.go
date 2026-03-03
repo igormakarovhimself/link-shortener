@@ -10,8 +10,11 @@ import (
 
 type contextKey string
 
+// UserIDKey — ключ для хранения userID в контексте запроса.
 const UserIDKey contextKey = "userID"
 
+// WithAuth — middleware для аутентификации, который читает userID из cookie.
+// Если cookie нет или она невалидна, генерирует новый userID и устанавливает cookie.
 func WithAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +51,7 @@ func WithAuth() func(http.Handler) http.Handler {
 	}
 }
 
+// GetUserID достает userID из контекста запроса.
 func GetUserID(ctx context.Context) string {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok {

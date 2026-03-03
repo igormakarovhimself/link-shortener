@@ -14,11 +14,13 @@ type urlData struct {
 	isDeleted   bool
 }
 
+// LocalRepository хранит URL в памяти.
 type LocalRepository struct {
 	storage map[string]urlData
 	mutex   sync.RWMutex
 }
 
+// NewLocalRepository создает пустой LocalRepository.
 func NewLocalRepository() *LocalRepository {
 	return &LocalRepository{
 		storage: make(map[string]urlData),

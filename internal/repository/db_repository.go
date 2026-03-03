@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// ConflictError возвращается при попытке сохранить URL, который уже существует.
+// ShortURL содержит уже имеющийся короткий URL для этого оригинала.
 type ConflictError struct {
 	ShortURL string
 }
@@ -19,8 +21,10 @@ func (e *ConflictError) Error() string {
 	return "url already exists"
 }
 
+// ErrURLDeleted возвращается при обращении к URL, который был удален.
 var ErrURLDeleted = errors.New("url has been deleted")
 
+// DBRepository реализует репозиторий с подключением к БД.
 type DBRepository struct {
 	db *sql.DB
 }

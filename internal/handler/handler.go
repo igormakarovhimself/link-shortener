@@ -1,3 +1,4 @@
+// Package handler содержит HTTP-обработчики сервиса сокращения URL.
 package handler
 
 import (
@@ -14,30 +15,36 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// ShortenRequest — тело запроса для эндпоинта POST /api/shorten.
 type ShortenRequest struct {
 	URL string `json:"url"`
 }
 
+// ShortenResponse — тело ответа для эндпоинта POST /api/shorten.
 type ShortenResponse struct {
 	Result string `json:"result"`
 }
 
+// BatchShortenRequest — один элемент запроса для сокращения батчами.
 type BatchShortenRequest struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
 }
 
+// BatchShortenResponse — один элемент ответа для сокращения батчами.
 type BatchShortenResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
 }
 
+// URLHandler обрабатывает HTTP-запросы сервиса сокращения URL.
 type URLHandler struct {
 	service   service.ShortenerService
 	baseURL   string
 	publisher *audit.Publisher
 }
 
+// NewHandler создает URLHandler с переданным сервисом, базовым URL и publisher-ом аудита.
 func NewHandler(service service.ShortenerService, baseURL string, publisher *audit.Publisher) *URLHandler {
 	return &URLHandler{
 		service:   service,
@@ -52,6 +59,7 @@ func (h *URLHandler) handleConflictError(w http.ResponseWriter, conflictErr *rep
 	w.Write([]byte(resultURL))
 }
 
+// HandlePost принимает оригинальный URL в теле запроса и возвращает короткий URL.
 func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -84,6 +92,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleGet ищет оригинальный URL по короткому идентификатору и делает редирект 307.
 func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	shortURL := chi.URLParam(r, "id")
 
@@ -108,6 +117,7 @@ func (h *URLHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleAPIShorten принимает URL в JSON и возвращает короткий URL в JSON.
 func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 	var req ShortenRequest
 
@@ -150,6 +160,7 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandlePing проверяет доступность хранилища.
 func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.Ping(r.Context()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -158,6 +169,7 @@ func (h *URLHandler) HandlePing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// HandleAPIBatch принимает массив URL в JSON и сокращает их пакетом.
 func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 	var requests []BatchShortenRequest
 
@@ -199,6 +211,7 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(responses)
 }
 
+// HandleGetUserURLs возвращает все URL текущего пользователя в JSON.
 func (h *URLHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -236,6 +249,7 @@ func (h *URLHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(responses)
 }
 
+// HandleDeleteUserURLs принимает список коротких URL в JSON и удаляет их.
 func (h *URLHandler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 

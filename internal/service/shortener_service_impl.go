@@ -19,11 +19,13 @@ const (
 	deleteChanSize = 1024
 )
 
+// DeleteTask — задача на удаление группы URL от имени пользователя.
 type DeleteTask struct {
 	UserID    string
 	ShortURLs []string
 }
 
+// DeleteResult — результат выполнения DeleteTask воркером.
 type DeleteResult struct {
 	Success bool
 	Error   error
@@ -31,6 +33,7 @@ type DeleteResult struct {
 	Count   int
 }
 
+// ShortenerServiceImpl — основная реализация ShortenerService.
 type ShortenerServiceImpl struct {
 	repo     repository.URLRepository
 	logger   *zap.SugaredLogger
@@ -39,6 +42,7 @@ type ShortenerServiceImpl struct {
 	wg       sync.WaitGroup
 }
 
+// NewShortenerService создает ShortenerServiceImpl и запускает пул воркеров для удаления URL.
 func NewShortenerService(repo repository.URLRepository, logger *zap.SugaredLogger) *ShortenerServiceImpl {
 	svc := &ShortenerServiceImpl{
 		repo:     repo,
@@ -187,6 +191,7 @@ func (s *ShortenerServiceImpl) DeleteURLsAsync(ctx context.Context, shortURLs []
 	}
 }
 
+// Shutdown останавливает воркеры и ждет завершения всех текущих задач.
 func (s *ShortenerServiceImpl) Shutdown(ctx context.Context) error {
 	close(s.deleteCh)
 	close(s.doneCh)

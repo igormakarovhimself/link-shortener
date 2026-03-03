@@ -1,3 +1,5 @@
+// Package config отвечает за конфигурацию сервиса.
+// Параметры читаются из флагов командной строки, переменные окружения имеют приоритет.
 package config
 
 import (
@@ -5,15 +7,23 @@ import (
 	"os"
 )
 
+// Config хранит настройки запуска сервиса.
 type Config struct {
-	ServerAddress   string
-	BaseURL         string
+	// ServerAddress — адрес и порт, на котором слушает сервер.
+	ServerAddress string
+	// BaseURL — базовый URL для формирования коротких ссылок.
+	BaseURL string
+	// FileStoragePath — путь к файлу для хранения URL (если не используется БД).
 	FileStoragePath string
-	DatabaseDSN     string
-	AuditFile       string
-	AuditURL        string
+	// DatabaseDSN — строка подключения к PostgreSQL.
+	DatabaseDSN string
+	// AuditFile — путь к файлу для записи аудит-событий.
+	AuditFile string
+	// AuditURL — внешний URL для отправки аудит-событий.
+	AuditURL string
 }
 
+// SetupConfig разбирает флаги и переменные окружения, возвращает заполненный Config.
 func SetupConfig() *Config {
 	cfg := &Config{}
 

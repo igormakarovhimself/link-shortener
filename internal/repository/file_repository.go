@@ -18,6 +18,7 @@ type urlFileData struct {
 	isDeleted   bool
 }
 
+// FileRepository хранит URL в в файле в JSON-формате.
 type FileRepository struct {
 	file    *os.File
 	encoder *json.Encoder
@@ -26,6 +27,7 @@ type FileRepository struct {
 	mutex   sync.RWMutex
 }
 
+// NewFileRepository открывает файл по пути filepath и загружает из него существующие URL.
 func NewFileRepository(filepath string) (*FileRepository, error) {
 	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
