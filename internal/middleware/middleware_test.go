@@ -36,7 +36,9 @@ func TestWithAuth_NewUser(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	cookies := w.Result().Cookies()
+	result := w.Result()
+	defer result.Body.Close()
+	cookies := result.Cookies()
 	assert.NotEmpty(t, cookies)
 }
 
