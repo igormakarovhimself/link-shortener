@@ -5,10 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"link-shortener/internal/model"
-	"link-shortener/internal/repository"
 	"net/url"
 	"sync"
+
+	"link-shortener/internal/model"
+	"link-shortener/internal/repository"
 
 	"go.uber.org/zap"
 )

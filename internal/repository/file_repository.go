@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"link-shortener/internal/model"
 	"os"
 	"strconv"
 	"sync"
+
+	"link-shortener/internal/model"
 )
 
 type urlFileData struct {

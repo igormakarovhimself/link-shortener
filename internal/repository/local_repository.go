@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"link-shortener/internal/model"
 	"sync"
+
+	"link-shortener/internal/model"
 )
 
 type urlData struct {

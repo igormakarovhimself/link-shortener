@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"link-shortener/internal/model"
 
 	"github.com/jackc/pgerrcode"

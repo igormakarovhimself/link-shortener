@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
-	"link-shortener/internal/auth"
 	"log"
 	"net/http"
+
+	"link-shortener/internal/auth"
 )
 
 type contextKey string
