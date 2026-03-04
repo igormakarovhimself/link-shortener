@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 // URLObserver отправляет аудит-события POST-запросом на внешний URL.
 type URLObserver struct {
-	url string
+	url    string
+	client *http.Client
 }
 
 // NewURLObserver создает URLObserver, который шлет события на url.
@@ -20,6 +22,9 @@ func NewURLObserver(url string) (*URLObserver, error) {
 
 	return &URLObserver{
 		url: url,
+		client: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 	}, nil
 }
 
@@ -30,7 +35,7 @@ func (u *URLObserver) OnAudit(event AuditEvent) {
 		return
 	}
 
-	resp, err := http.Post(u.url, "application/json", bytes.NewBuffer(data))
+	resp, err := u.client.Post(u.url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return
 	}
