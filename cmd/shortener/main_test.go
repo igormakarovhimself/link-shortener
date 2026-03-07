@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"link-shortener/internal/config"
-	"link-shortener/internal/repository"
 	"os"
 	"testing"
+
+	"link-shortener/internal/config"
+	"link-shortener/internal/repository"
 )
 
 func TestRepositorySelection(t *testing.T) {

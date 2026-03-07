@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	"link-shortener/internal/audit"
 	"link-shortener/internal/config"
 	"link-shortener/internal/handler"
 	"link-shortener/internal/middleware"
@@ -60,13 +62,35 @@ func main() {
 		repo = repository.NewLocalRepository()
 	}
 
+	publisher := audit.NewPublisher()
+
+	if cfg.AuditFile != "" {
+		fileObserver, err := audit.NewFileObserver(cfg.AuditFile)
+		if err != nil {
+			log.Printf("Failed to create file observer: %v", err)
+		} else if fileObserver != nil {
+			publisher.Register("file", fileObserver)
+			defer fileObserver.Close()
+		}
+	}
+
+	if cfg.AuditURL != "" {
+		urlObserver, err := audit.NewURLObserver(cfg.AuditURL)
+		if err != nil {
+			log.Printf("Failed to create URL observer: %v", err)
+		} else if urlObserver != nil {
+			publisher.Register("url", urlObserver)
+		}
+	}
+
 	svc := service.NewShortenerService(repo, sugar)
-	h := handler.NewHandler(svc, cfg.BaseURL)
+	h := handler.NewHandler(svc, cfg.BaseURL, publisher)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
 	r.Use(middleware.WithGzip())
 	r.Use(middleware.WithAuth())
+	r.Mount("/debug", http.DefaultServeMux)
 	r.Post("/", h.HandlePost)
 	r.Get("/{id}", h.HandleGet)
 	r.Get("/ping", h.HandlePing)

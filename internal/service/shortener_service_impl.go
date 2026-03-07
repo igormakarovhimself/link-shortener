@@ -5,10 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"link-shortener/internal/model"
-	"link-shortener/internal/repository"
 	"net/url"
 	"sync"
+
+	"link-shortener/internal/model"
+	"link-shortener/internal/repository"
 
 	"go.uber.org/zap"
 )
@@ -18,11 +19,13 @@ const (
 	deleteChanSize = 1024
 )
 
+// DeleteTask — задача на удаление группы URL от имени пользователя.
 type DeleteTask struct {
 	UserID    string
 	ShortURLs []string
 }
 
+// DeleteResult — результат выполнения DeleteTask воркером.
 type DeleteResult struct {
 	Success bool
 	Error   error
@@ -30,6 +33,7 @@ type DeleteResult struct {
 	Count   int
 }
 
+// ShortenerServiceImpl — основная реализация ShortenerService.
 type ShortenerServiceImpl struct {
 	repo     repository.URLRepository
 	logger   *zap.SugaredLogger
@@ -38,6 +42,7 @@ type ShortenerServiceImpl struct {
 	wg       sync.WaitGroup
 }
 
+// NewShortenerService создает ShortenerServiceImpl и запускает пул воркеров для удаления URL.
 func NewShortenerService(repo repository.URLRepository, logger *zap.SugaredLogger) *ShortenerServiceImpl {
 	svc := &ShortenerServiceImpl{
 		repo:     repo,
@@ -81,11 +86,8 @@ func (s *ShortenerServiceImpl) GetOriginalURL(ctx context.Context, shortURL stri
 }
 
 func (s *ShortenerServiceImpl) generateShortURL(originalURL string) string {
-	hash := sha256.New()
-	hash.Write([]byte(originalURL))
-	resultHash := hash.Sum(nil)
-	result := base64.RawURLEncoding.EncodeToString(resultHash)
-
+	hash := sha256.Sum256([]byte(originalURL))
+	result := base64.RawURLEncoding.EncodeToString(hash[:])
 	return result[:8]
 }
 
@@ -189,6 +191,7 @@ func (s *ShortenerServiceImpl) DeleteURLsAsync(ctx context.Context, shortURLs []
 	}
 }
 
+// Shutdown останавливает воркеры и ждет завершения всех текущих задач.
 func (s *ShortenerServiceImpl) Shutdown(ctx context.Context) error {
 	close(s.deleteCh)
 	close(s.doneCh)

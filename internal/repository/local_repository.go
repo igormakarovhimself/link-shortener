@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"link-shortener/internal/model"
 	"sync"
+
+	"link-shortener/internal/model"
 )
 
 type urlData struct {
@@ -13,11 +14,13 @@ type urlData struct {
 	isDeleted   bool
 }
 
+// LocalRepository хранит URL в памяти.
 type LocalRepository struct {
 	storage map[string]urlData
 	mutex   sync.RWMutex
 }
 
+// NewLocalRepository создает пустой LocalRepository.
 func NewLocalRepository() *LocalRepository {
 	return &LocalRepository{
 		storage: make(map[string]urlData),

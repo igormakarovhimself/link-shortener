@@ -6,13 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"link-shortener/internal/middleware"
-	"link-shortener/internal/repository"
-	"link-shortener/internal/service"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"link-shortener/internal/audit"
+	"link-shortener/internal/middleware"
+	"link-shortener/internal/repository"
+	"link-shortener/internal/service"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +61,7 @@ func TestHandlePost(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080")
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
 			ctx := context.WithValue(request.Context(), middleware.UserIDKey, "test-user-id")
@@ -86,7 +88,7 @@ func TestGzipCompression(t *testing.T) {
 	repo := repository.NewLocalRepository()
 	logger := zap.NewNop().Sugar()
 	svc := service.NewShortenerService(repo, logger)
-	h := NewHandler(svc, "http://localhost:8080")
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithGzip())
@@ -187,7 +189,7 @@ func TestHandleGet(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080")
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
 
 			if test.setupURL != "" {
 				err := repo.Save(context.Background(), test.shortURL, test.setupURL, "test-user-id")
@@ -260,7 +262,7 @@ func TestHandleAPIShorten(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080")
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
 
 			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
 			request.Header.Set("Content-Type", "application/json")
