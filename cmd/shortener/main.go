@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -20,7 +21,22 @@ import (
 	"link-shortener/internal/service"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
+func valueOrNA(s string) string {
+	if s == "" {
+		return "N/A"
+	}
+	return s
+}
+
 func main() {
+	fmt.Printf("Build version: %s\n", valueOrNA(buildVersion))
+	fmt.Printf("Build date: %s\n", valueOrNA(buildDate))
+	fmt.Printf("Build commit: %s\n", valueOrNA(buildCommit))
+
 	cfg := config.SetupConfig()
 
 	logger, err := zap.NewDevelopment()
