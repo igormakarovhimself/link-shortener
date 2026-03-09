@@ -1,6 +1,6 @@
 module link-shortener
 
-go 1.25.0
+go 1.24.13
 
 require (
 	github.com/Yandex-Practicum/go-autotests v0.13.2
