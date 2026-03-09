@@ -42,7 +42,7 @@ func NewFileRepository(filepath string) (*FileRepository, error) {
 	}
 
 	if err := repo.loadData(); err != nil {
-		file.Close()
+		_ = file.Close()
 		return nil, err
 	}
 

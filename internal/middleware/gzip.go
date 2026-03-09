@@ -112,7 +112,7 @@ func WithGzip() func(http.Handler) http.Handler {
 				ow = cw
 				defer func() {
 					if cw.shouldCompress {
-						cw.Writer.(*gzip.Writer).Close()
+						_ = cw.Writer.(*gzip.Writer).Close()
 					}
 				}()
 			}
@@ -126,7 +126,7 @@ func WithGzip() func(http.Handler) http.Handler {
 					return
 				}
 				r.Body = cr
-				defer cr.Close()
+				defer func() { _ = cr.Close() }()
 			}
 
 			h.ServeHTTP(ow, r)

@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	sugar := logger.Sugar()
 
@@ -39,7 +39,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -56,7 +56,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer fileRepo.Close()
+		defer func() { _ = fileRepo.Close() }()
 		repo = fileRepo
 	} else {
 		repo = repository.NewLocalRepository()
@@ -70,7 +70,7 @@ func main() {
 			log.Printf("Failed to create file observer: %v", err)
 		} else if fileObserver != nil {
 			publisher.Register("file", fileObserver)
-			defer fileObserver.Close()
+			defer func() { _ = fileObserver.Close() }()
 		}
 	}
 

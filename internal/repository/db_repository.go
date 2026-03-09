@@ -121,14 +121,14 @@ func (r *DBRepository) SaveBatch(ctx context.Context, shortURLs, originalURLs []
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx,
 		"INSERT INTO urls (short_url, original_url, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for i := range shortURLs {
 		_, err = stmt.ExecContext(ctx, shortURLs[i], originalURLs[i], userID)
@@ -149,7 +149,7 @@ func (r *DBRepository) GetURLsByUserID(ctx context.Context, userID string) ([]mo
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var urls []model.URLPair
 	for rows.Next() {

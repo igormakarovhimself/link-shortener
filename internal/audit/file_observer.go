@@ -39,7 +39,7 @@ func (f *FileObserver) OnAudit(event AuditEvent) {
 	}
 
 	data = append(data, '\n')
-	f.file.Write(data)
+	_, _ = f.file.Write(data)
 }
 
 // Close закрывает файл.

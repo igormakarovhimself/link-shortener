@@ -39,7 +39,7 @@ func ExampleURLHandler_HandleGet() {
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
 	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
 
-	repo.Save(context.Background(), "abc12345", "https://example.com", "user1")
+	_ = repo.Save(context.Background(), "abc12345", "https://example.com", "user1")
 
 	router := chi.NewRouter()
 	router.Get("/{id}", h.HandleGet)

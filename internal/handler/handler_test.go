@@ -71,7 +71,7 @@ func TestHandlePost(t *testing.T) {
 			handler.HandlePost(w, request)
 
 			res := w.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
@@ -124,7 +124,7 @@ func TestGzipCompression(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestGzipCompression(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		zr, err := gzip.NewReader(resp.Body)
 		require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestHandleGet(t *testing.T) {
 			r.ServeHTTP(w, request)
 
 			res := w.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 
@@ -273,7 +273,7 @@ func TestHandleAPIShorten(t *testing.T) {
 			handler.HandleAPIShorten(w, request)
 
 			res := w.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			assert.Equal(t, test.want.statusCode, res.StatusCode)
 

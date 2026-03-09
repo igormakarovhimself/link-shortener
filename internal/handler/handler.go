@@ -56,7 +56,7 @@ func NewHandler(service service.ShortenerService, baseURL string, publisher *aud
 func (h *URLHandler) handleConflictError(w http.ResponseWriter, conflictErr *repository.ConflictError) {
 	resultURL := h.baseURL + "/" + conflictErr.ShortURL
 	w.WriteHeader(http.StatusConflict)
-	w.Write([]byte(resultURL))
+	_, _ = w.Write([]byte(resultURL))
 }
 
 // HandlePost принимает оригинальный URL в теле запроса и возвращает короткий URL.
@@ -84,7 +84,7 @@ func (h *URLHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	resultURL := h.baseURL + "/" + shortURL
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(resultURL))
+	_, _ = w.Write([]byte(resultURL))
 
 	if h.publisher != nil {
 		event := audit.NewAuditEvent("shorten", userID, originalURL)
@@ -138,7 +138,7 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -152,7 +152,7 @@ func (h *URLHandler) HandleAPIShorten(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 
 	if h.publisher != nil {
 		event := audit.NewAuditEvent("shorten", userID, req.URL)
@@ -208,7 +208,7 @@ func (h *URLHandler) HandleAPIBatch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 // HandleGetUserURLs возвращает все URL текущего пользователя в JSON.
@@ -246,7 +246,7 @@ func (h *URLHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 // HandleDeleteUserURLs принимает список коротких URL в JSON и удаляет их.
