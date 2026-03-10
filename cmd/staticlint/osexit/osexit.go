@@ -19,21 +19,24 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		ast.Inspect(file, func(node ast.Node) bool {
 			fn, ok := node.(*ast.FuncDecl)
-			if !ok || fn.Name.Name != "main" {
+			if !ok {
 				return true
+			}
+			if fn.Name.Name == "main" {
+				return false
 			}
 			ast.Inspect(fn.Body, func(n ast.Node) bool {
 				call, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
 				}
-				sel, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok {
-					return true
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "os" && sel.Sel.Name == "Exit" {
+						pass.Reportf(call.Pos(), "os.Exit call")
+					}
 				}
-				pkg, ok := sel.X.(*ast.Ident)
-				if ok && pkg.Name == "os" && sel.Sel.Name == "Exit" {
-					pass.Reportf(call.Pos(), "os.Exit call in main function of main package")
+				if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" {
+					pass.Reportf(call.Pos(), "panic call")
 				}
 				return true
 			})
