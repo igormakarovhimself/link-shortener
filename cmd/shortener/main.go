@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -20,14 +21,29 @@ import (
 	"link-shortener/internal/service"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
+func valueOrNA(s string) string {
+	if s == "" {
+		return "N/A"
+	}
+	return s
+}
+
 func main() {
+	fmt.Printf("Build version: %s\n", valueOrNA(buildVersion))
+	fmt.Printf("Build date: %s\n", valueOrNA(buildDate))
+	fmt.Printf("Build commit: %s\n", valueOrNA(buildCommit))
+
 	cfg := config.SetupConfig()
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	sugar := logger.Sugar()
 
@@ -39,7 +55,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -56,7 +72,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer fileRepo.Close()
+		defer func() { _ = fileRepo.Close() }()
 		repo = fileRepo
 	} else {
 		repo = repository.NewLocalRepository()
@@ -70,7 +86,7 @@ func main() {
 			log.Printf("Failed to create file observer: %v", err)
 		} else if fileObserver != nil {
 			publisher.Register("file", fileObserver)
-			defer fileObserver.Close()
+			defer func() { _ = fileObserver.Close() }()
 		}
 	}
 

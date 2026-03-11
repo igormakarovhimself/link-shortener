@@ -24,6 +24,6 @@ func BenchmarkShortenURL(b *testing.B) {
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		svc.ShortenURL(ctx, "https://practicum.yandex.ru/go-developer/", "user1")
+		_, _ = svc.ShortenURL(ctx, "https://practicum.yandex.ru/go-developer/", "user1")
 	}
 }

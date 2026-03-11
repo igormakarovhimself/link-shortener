@@ -29,13 +29,13 @@ func TestRepositorySelection(t *testing.T) {
 
 	t.Run("FileRepository initialization", func(t *testing.T) {
 		testFile := "test-storage.json"
-		defer os.Remove(testFile)
+		defer func() { _ = os.Remove(testFile) }()
 
 		repo, err := repository.NewFileRepository(testFile)
 		if err != nil {
 			t.Fatalf("Failed to create FileRepository: %v", err)
 		}
-		defer repo.Close()
+		defer func() { _ = repo.Close() }()
 
 		ctx := context.Background()
 		err = repo.Save(ctx, "test123", "https://example.com", "test-user")

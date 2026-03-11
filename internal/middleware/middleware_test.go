@@ -37,7 +37,7 @@ func TestWithAuth_NewUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	result := w.Result()
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 	cookies := result.Cookies()
 	assert.NotEmpty(t, cookies)
 }
@@ -64,7 +64,7 @@ func TestWithGzip_AcceptsGzip(t *testing.T) {
 	handler := WithGzip()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"result":"ok"}`))
+		_, _ = w.Write([]byte(`{"result":"ok"}`))
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -84,7 +84,7 @@ func TestWithGzip_AcceptsGzip(t *testing.T) {
 func TestWithGzip_NoAcceptEncoding(t *testing.T) {
 	handler := WithGzip()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"result":"ok"}`))
+		_, _ = w.Write([]byte(`{"result":"ok"}`))
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -105,8 +105,8 @@ func TestWithGzip_SendsGzip(t *testing.T) {
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	gz.Write([]byte("hello world"))
-	gz.Close()
+	_, _ = gz.Write([]byte("hello world"))
+	_ = gz.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/", &buf)
 	req.Header.Set("Content-Encoding", "gzip")
@@ -127,7 +127,7 @@ func TestSupportsCompression(t *testing.T) {
 func TestWithLogging(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	handler := WithLogging(logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/test", strings.NewReader(""))
