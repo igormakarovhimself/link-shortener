@@ -21,6 +21,8 @@ type Config struct {
 	AuditFile string
 	// AuditURL — внешний URL для отправки аудит-событий.
 	AuditURL string
+	// EnableHTTPS — включить HTTPS-режим сервера.
+	EnableHTTPS bool
 }
 
 // SetupConfig разбирает флаги и переменные окружения, возвращает заполненный Config.
@@ -33,6 +35,7 @@ func SetupConfig() *Config {
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database DSN")
 	flag.StringVar(&cfg.AuditFile, "audit-file", "", "Audit file path")
 	flag.StringVar(&cfg.AuditURL, "audit-url", "", "Audit URL")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
 
 	flag.Parse()
 
@@ -58,6 +61,10 @@ func SetupConfig() *Config {
 
 	if envAuditURL := os.Getenv("AUDIT_URL"); envAuditURL != "" {
 		cfg.AuditURL = envAuditURL
+	}
+
+	if os.Getenv("ENABLE_HTTPS") != "" {
+		cfg.EnableHTTPS = true
 	}
 
 	return cfg

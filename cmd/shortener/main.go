@@ -116,8 +116,17 @@ func main() {
 	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
 
 	log.Println("Starting server on", cfg.ServerAddress)
-	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
-		log.Fatal(err)
+	if cfg.EnableHTTPS {
+		if err := generateX509Certificate(); err != nil {
+			log.Fatal(err)
+		}
+		if err := http.ListenAndServeTLS(cfg.ServerAddress, "cert.pem", "private.pem", r); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 }
