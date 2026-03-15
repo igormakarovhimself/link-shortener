@@ -56,11 +56,11 @@ func generateX509Certificate() error {
 		return err
 	}
 
-	if err = os.WriteFile("cert.pem", certPEM.Bytes(), 0644); err != nil {
+	if err = os.WriteFile("cert.pem", certPEM.Bytes(), 0600); err != nil {
 		return err
 	}
 
-	if err = os.WriteFile("private.pem", privateKeyPEM.Bytes(), 0644); err != nil {
+	if err = os.WriteFile("private.pem", privateKeyPEM.Bytes(), 0600); err != nil {
 		return err
 	}
 
