@@ -126,10 +126,14 @@ func main() {
 
 	go func() {
 		<-sigint
-		if err := srv.Shutdown(context.Background()); err != nil {
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP server Shutdown: %v", err)
 		}
-		if err := svc.Shutdown(context.Background()); err != nil {
+		if err := svc.Shutdown(shutdownCtx); err != nil {
 			log.Printf("Service Shutdown: %v", err)
 		}
 		close(idleConnsClosed)
