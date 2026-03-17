@@ -109,3 +109,7 @@ func (r *LocalRepository) DeleteURLs(ctx context.Context, shortURLs []string, us
 func (r *LocalRepository) Ping(ctx context.Context) error {
 	return nil
 }
+
+func (r *LocalRepository) GetStats(ctx context.Context) (int, int, error) {
+	return 0, 0, fmt.Errorf("not implemented")
+}

@@ -21,7 +21,7 @@ import (
 func ExampleURLHandler_HandlePost() {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
 	r = r.WithContext(context.WithValue(r.Context(), middleware.UserIDKey, "user1"))
@@ -37,7 +37,7 @@ func ExampleURLHandler_HandlePost() {
 func ExampleURLHandler_HandleGet() {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 	_ = repo.Save(context.Background(), "abc12345", "https://example.com", "user1")
 
@@ -59,7 +59,7 @@ func ExampleURLHandler_HandleGet() {
 func ExampleURLHandler_HandleAPIShorten() {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 	body := `{"url":"https://example.com"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(body))
@@ -79,7 +79,7 @@ func ExampleURLHandler_HandleAPIShorten() {
 func ExampleURLHandler_HandleAPIBatch() {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 	body := `[
 		{"correlation_id":"1","original_url":"https://example.com"},

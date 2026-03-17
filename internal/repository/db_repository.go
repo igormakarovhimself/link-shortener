@@ -180,3 +180,12 @@ func (r *DBRepository) DeleteURLs(ctx context.Context, shortURLs []string, userI
 func (r *DBRepository) Ping(ctx context.Context) error {
 	return r.db.PingContext(ctx)
 }
+
+func (r *DBRepository) GetStats(ctx context.Context) (int, int, error) {
+	var urls, users int
+	err := r.db.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*), COUNT(DISTINCT user_id) FROM urls",
+	).Scan(&urls, &users)
+	return urls, users, err
+}

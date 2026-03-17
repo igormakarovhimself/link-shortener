@@ -103,7 +103,7 @@ func main() {
 	}
 
 	svc := service.NewShortenerService(repo, sugar)
-	h := handler.NewHandler(svc, cfg.BaseURL, publisher)
+	h := handler.NewHandler(svc, cfg.BaseURL, publisher, cfg.TrustedSubnet)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
@@ -117,6 +117,7 @@ func main() {
 	r.Post("/api/shorten/batch", h.HandleAPIBatch)
 	r.Get("/api/user/urls", h.HandleGetUserURLs)
 	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
+	r.Get("/api/internal/stats", h.HandleStats)
 
 	srv := &http.Server{Addr: cfg.ServerAddress, Handler: r}
 

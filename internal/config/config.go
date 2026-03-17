@@ -25,6 +25,8 @@ type Config struct {
 	AuditURL string
 	// EnableHTTPS — включить HTTPS-режим сервера.
 	EnableHTTPS bool
+	// TrustedSubnet — доверенная подсеть
+	TrustedSubnet string
 }
 
 type fileConfig struct {
@@ -33,6 +35,7 @@ type fileConfig struct {
 	FileStoragePath *string `json:"file_storage_path"`
 	DatabaseDSN     *string `json:"database_dsn"`
 	EnableHTTPS     *bool   `json:"enable_https"`
+	TrustedSubnet   *string `json:"trusted_subnet"`
 }
 
 func loadFileConfig(path string) (*fileConfig, error) {
@@ -62,6 +65,7 @@ func SetupConfig() *Config {
 	flag.StringVar(&cfg.AuditFile, "audit-file", "", "Audit file path")
 	flag.StringVar(&cfg.AuditURL, "audit-url", "", "Audit URL")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
+	flag.StringVar(&cfg.TrustedSubnet, "t", "", "Trusted subnet")
 
 	flag.Parse()
 
@@ -92,6 +96,9 @@ func SetupConfig() *Config {
 			if fc.EnableHTTPS != nil && !setFlags["s"] {
 				cfg.EnableHTTPS = *fc.EnableHTTPS
 			}
+			if fc.TrustedSubnet != nil && !setFlags["t"] {
+				cfg.TrustedSubnet = *fc.TrustedSubnet
+			}
 		}
 	}
 
@@ -115,6 +122,9 @@ func SetupConfig() *Config {
 	}
 	if v, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
 		cfg.EnableHTTPS, _ = strconv.ParseBool(v)
+	}
+	if v, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
+		cfg.TrustedSubnet = v
 	}
 
 	return cfg
