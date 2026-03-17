@@ -27,6 +27,8 @@ type Config struct {
 	EnableHTTPS bool
 	// TrustedSubnet — доверенная подсеть
 	TrustedSubnet string
+	// GRPCAddress — адрес и порт gRPC-сервера.
+	GRPCAddress string
 }
 
 type fileConfig struct {
@@ -66,6 +68,7 @@ func SetupConfig() *Config {
 	flag.StringVar(&cfg.AuditURL, "audit-url", "", "Audit URL")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
 	flag.StringVar(&cfg.TrustedSubnet, "t", "", "Trusted subnet")
+	flag.StringVar(&cfg.GRPCAddress, "g", ":3200", "GRPC server address")
 
 	flag.Parse()
 
@@ -125,6 +128,9 @@ func SetupConfig() *Config {
 	}
 	if v, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
 		cfg.TrustedSubnet = v
+	}
+	if v, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
+		cfg.GRPCAddress = v
 	}
 
 	return cfg

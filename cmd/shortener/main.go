@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -15,13 +16,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	"link-shortener/internal/audit"
 	"link-shortener/internal/config"
+	"link-shortener/internal/grpcserver"
 	"link-shortener/internal/handler"
 	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
+	pb "link-shortener/proto"
 )
 
 var buildVersion string
@@ -120,6 +124,20 @@ func main() {
 	r.Get("/api/internal/stats", h.HandleStats)
 
 	srv := &http.Server{Addr: cfg.ServerAddress, Handler: r}
+
+	listen, err := net.Listen("tcp", cfg.GRPCAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := grpc.NewServer(grpc.UnaryInterceptor(grpcserver.UnaryServerInterceptor(grpcserver.Authenticate)))
+	pb.RegisterShortenerServiceServer(s, grpcserver.NewShortenerServer(svc, cfg.BaseURL))
+
+	go func() {
+		log.Println("Starting gRPC server on", cfg.GRPCAddress)
+		if err := s.Serve(listen); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	idleConnsClosed := make(chan struct{})
 	sigint := make(chan os.Signal, 1)
