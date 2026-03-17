@@ -16,7 +16,7 @@ import (
 func BenchmarkHandlePost(b *testing.B) {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
@@ -30,7 +30,7 @@ func BenchmarkHandlePost(b *testing.B) {
 func BenchmarkHandleAPIShorten(b *testing.B) {
 	repo := repository.NewLocalRepository()
 	svc := service.NewShortenerService(repo, zap.NewNop().Sugar())
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 	body := `{"url":"https://practicum.yandex.ru/go-developer/"}`
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

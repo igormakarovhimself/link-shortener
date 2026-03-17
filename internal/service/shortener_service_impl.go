@@ -213,3 +213,7 @@ func (s *ShortenerServiceImpl) Shutdown(ctx context.Context) error {
 func (s *ShortenerServiceImpl) Ping(ctx context.Context) error {
 	return s.repo.Ping(ctx)
 }
+
+func (s *ShortenerServiceImpl) GetStats(ctx context.Context) (int, int, error) {
+	return s.repo.GetStats(ctx)
+}
