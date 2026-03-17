@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -115,9 +118,41 @@ func main() {
 	r.Get("/api/user/urls", h.HandleGetUserURLs)
 	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
 
+	srv := &http.Server{Addr: cfg.ServerAddress, Handler: r}
+
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	go func() {
+		<-sigint
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+		if err := svc.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Service Shutdown: %v", err)
+		}
+		close(idleConnsClosed)
+	}()
+
 	log.Println("Starting server on", cfg.ServerAddress)
-	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
-		log.Fatal(err)
+	if cfg.EnableHTTPS {
+		if err := generateX509Certificate(); err != nil {
+			log.Fatal(err)
+		}
+		if err := srv.ListenAndServeTLS("cert.pem", "private.pem"); err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	} else {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
 	}
 
+	<-idleConnsClosed
+	log.Println("Server Shutdown gracefully")
 }
