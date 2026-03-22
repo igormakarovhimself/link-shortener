@@ -22,4 +22,6 @@ type ShortenerService interface {
 	DeleteURLsAsync(ctx context.Context, shortURLs []string, userID string)
 	// Ping проверяет доступность хранилища.
 	Ping(ctx context.Context) error
+	// GetStats возвращает количество URL и уникальных пользователей.
+	GetStats(ctx context.Context) (urls int, users int, err error)
 }

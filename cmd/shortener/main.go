@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -15,13 +16,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	"link-shortener/internal/audit"
 	"link-shortener/internal/config"
+	"link-shortener/internal/grpcserver"
 	"link-shortener/internal/handler"
 	"link-shortener/internal/middleware"
 	"link-shortener/internal/repository"
 	"link-shortener/internal/service"
+	pb "link-shortener/proto"
 )
 
 var buildVersion string
@@ -103,7 +107,7 @@ func main() {
 	}
 
 	svc := service.NewShortenerService(repo, sugar)
-	h := handler.NewHandler(svc, cfg.BaseURL, publisher)
+	h := handler.NewHandler(svc, cfg.BaseURL, publisher, cfg.TrustedSubnet)
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithLogging(sugar))
@@ -117,8 +121,23 @@ func main() {
 	r.Post("/api/shorten/batch", h.HandleAPIBatch)
 	r.Get("/api/user/urls", h.HandleGetUserURLs)
 	r.Delete("/api/user/urls", h.HandleDeleteUserURLs)
+	r.Get("/api/internal/stats", h.HandleStats)
 
 	srv := &http.Server{Addr: cfg.ServerAddress, Handler: r}
+
+	listen, err := net.Listen("tcp", cfg.GRPCAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := grpc.NewServer(grpc.UnaryInterceptor(grpcserver.UnaryServerInterceptor(grpcserver.Authenticate)))
+	pb.RegisterShortenerServiceServer(s, grpcserver.NewShortenerServer(svc, cfg.BaseURL))
+
+	go func() {
+		log.Println("Starting gRPC server on", cfg.GRPCAddress)
+		if err := s.Serve(listen); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	idleConnsClosed := make(chan struct{})
 	sigint := make(chan os.Signal, 1)
@@ -133,6 +152,7 @@ func main() {
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP server Shutdown: %v", err)
 		}
+		s.GracefulStop()
 		if err := svc.Shutdown(shutdownCtx); err != nil {
 			log.Printf("Service Shutdown: %v", err)
 		}

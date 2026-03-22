@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 
 	"link-shortener/internal/audit"
@@ -37,20 +38,34 @@ type BatchShortenResponse struct {
 	ShortURL      string `json:"short_url"`
 }
 
+// StatsResponse — тело ответа для эндпоинта GET /api/internal/stats.
+type StatsResponse struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
 // URLHandler обрабатывает HTTP-запросы сервиса сокращения URL.
 type URLHandler struct {
-	service   service.ShortenerService
-	baseURL   string
-	publisher *audit.Publisher
+	service       service.ShortenerService
+	baseURL       string
+	publisher     *audit.Publisher
+	trustedSubnet *net.IPNet
 }
 
 // NewHandler создает URLHandler с переданным сервисом, базовым URL и publisher-ом аудита.
-func NewHandler(service service.ShortenerService, baseURL string, publisher *audit.Publisher) *URLHandler {
-	return &URLHandler{
+func NewHandler(service service.ShortenerService, baseURL string, publisher *audit.Publisher, trustedSubnet string) *URLHandler {
+	h := &URLHandler{
 		service:   service,
 		baseURL:   baseURL,
 		publisher: publisher,
 	}
+	if trustedSubnet != "" {
+		_, ipNet, err := net.ParseCIDR(trustedSubnet)
+		if err == nil {
+			h.trustedSubnet = ipNet
+		}
+	}
+	return h
 }
 
 func (h *URLHandler) handleConflictError(w http.ResponseWriter, conflictErr *repository.ConflictError) {
@@ -267,4 +282,29 @@ func (h *URLHandler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request
 	h.service.DeleteURLsAsync(r.Context(), shortURLs, userID)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// HandleStats возвращает статистику сервиса — количество URL и пользователей.
+func (h *URLHandler) HandleStats(w http.ResponseWriter, r *http.Request) {
+	if h.trustedSubnet == nil {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	ipStr := r.Header.Get("X-Real-IP")
+	ip := net.ParseIP(ipStr)
+	if ip == nil || !h.trustedSubnet.Contains(ip) {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	urls, users, err := h.service.GetStats(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(StatsResponse{URLs: urls, Users: users})
 }

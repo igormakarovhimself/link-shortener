@@ -61,7 +61,7 @@ func TestHandlePost(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
 			ctx := context.WithValue(request.Context(), middleware.UserIDKey, "test-user-id")
@@ -88,7 +88,7 @@ func TestGzipCompression(t *testing.T) {
 	repo := repository.NewLocalRepository()
 	logger := zap.NewNop().Sugar()
 	svc := service.NewShortenerService(repo, logger)
-	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+	h := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 	r := chi.NewRouter()
 	r.Use(middleware.WithGzip())
@@ -189,7 +189,7 @@ func TestHandleGet(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 			if test.setupURL != "" {
 				err := repo.Save(context.Background(), test.shortURL, test.setupURL, "test-user-id")
@@ -262,7 +262,7 @@ func TestHandleAPIShorten(t *testing.T) {
 			repo := repository.NewLocalRepository()
 			logger := zap.NewNop().Sugar()
 			svc := service.NewShortenerService(repo, logger)
-			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher())
+			handler := NewHandler(svc, "http://localhost:8080", audit.NewPublisher(), "")
 
 			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(test.body))
 			request.Header.Set("Content-Type", "application/json")
