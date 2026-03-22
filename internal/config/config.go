@@ -38,6 +38,7 @@ type fileConfig struct {
 	DatabaseDSN     *string `json:"database_dsn"`
 	EnableHTTPS     *bool   `json:"enable_https"`
 	TrustedSubnet   *string `json:"trusted_subnet"`
+	GRPCAddress     *string `json:"grpc_address"`
 }
 
 func loadFileConfig(path string) (*fileConfig, error) {
@@ -101,6 +102,9 @@ func SetupConfig() *Config {
 			}
 			if fc.TrustedSubnet != nil && !setFlags["t"] {
 				cfg.TrustedSubnet = *fc.TrustedSubnet
+			}
+			if fc.GRPCAddress != nil && !setFlags["g"] {
+				cfg.GRPCAddress = *fc.GRPCAddress
 			}
 		}
 	}
