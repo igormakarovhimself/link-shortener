@@ -152,6 +152,7 @@ func main() {
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP server Shutdown: %v", err)
 		}
+		s.GracefulStop()
 		if err := svc.Shutdown(shutdownCtx); err != nil {
 			log.Printf("Service Shutdown: %v", err)
 		}
